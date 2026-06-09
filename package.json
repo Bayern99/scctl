@@ -31,12 +31,12 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Bayern99/New.git"
+    "url": "git+https://github.com/Bayern99/scctl.git"
   },
   "bugs": {
-    "url": "https://github.com/Bayern99/New/issues"
+    "url": "https://github.com/Bayern99/scctl/issues"
   },
-  "homepage": "https://github.com/Bayern99/New#readme",
+  "homepage": "https://github.com/Bayern99/scctl#readme",
   "engines": {
     "node": ">=22.0.0"
   },

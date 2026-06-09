@@ -36,5 +36,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SclangController` with delimiter-based execute protocol
 - Vitest test suite
 
-[Unreleased]: https://github.com/Bayern99/New/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Bayern99/New/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Bayern99/scctl/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Bayern99/scctl/releases/tag/v1.0.0
