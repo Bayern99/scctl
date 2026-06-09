@@ -30,9 +30,16 @@ program
   .command('run <file>')
   .description('Run a .scd file and evaluate it using SclangController')
   .action(async (file) => {
+    let controller: SclangController | null = null;
     try {
-      if (!fs.existsSync(file)) {
-        console.error(`Error: File not found: ${file}`);
+      let isFile = false;
+      try {
+        isFile = fs.statSync(file).isFile();
+      } catch {
+        // Ignore
+      }
+      if (!isFile) {
+        console.error(`Error: File not found or is not a regular file: ${file}`);
         process.exit(1);
       }
       const code = fs.readFileSync(file, 'utf-8');
@@ -41,20 +48,23 @@ program
         console.error('Error: sclang binary not found');
         process.exit(1);
       }
-      const controller = new SclangController(sclangPath);
+      controller = new SclangController(sclangPath);
       await controller.boot();
       const result = await controller.execute(code);
       if (result.success) {
         console.log(result.output);
-        controller.stop();
+        await controller.stop();
         process.exit(0);
       } else {
         console.error(result.output);
-        controller.stop();
+        await controller.stop();
         process.exit(1);
       }
     } catch (err: any) {
       console.error(`Execution failed: ${err.message}`);
+      if (controller) {
+        await controller.stop();
+      }
       process.exit(1);
     }
   });

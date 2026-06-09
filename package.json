@@ -4,6 +4,9 @@
   "type": "module",
   "description": "SuperCollider Coding Agent",
   "main": "dist/index.js",
+  "bin": {
+    "scctl": "./dist/cli.js"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",

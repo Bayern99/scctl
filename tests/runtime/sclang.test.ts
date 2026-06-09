@@ -103,12 +103,13 @@ describe('Sclang Process Controller', () => {
     await vi.advanceTimersByTimeAsync(1500);
     await bootPromise;
 
-    controller.stop();
+    const stopPromise = controller.stop();
     
     expect(mockProcess.stdin.write).toHaveBeenCalledWith('CmdPeriod.run; Server.killAll;\n\x0c');
     expect(mockProcess.stdin.end).toHaveBeenCalled();
     
     await vi.advanceTimersByTimeAsync(500);
+    await stopPromise;
     expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');
     vi.useRealTimers();
   });

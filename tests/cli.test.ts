@@ -1,12 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
 describe('CLI Shell Interface', () => {
-  it('should compile and support CLI options', () => {
-    // Fails initially because cli.ts and build targets don't exist
+  beforeAll(() => {
     execSync('npm run build');
+  }, 15000);
+
+  it('should compile and support CLI options', () => {
     const stdout = execSync('node ./dist/cli.js --help').toString();
     expect(stdout).toContain('scctl');
   });

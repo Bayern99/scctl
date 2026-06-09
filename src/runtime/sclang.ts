@@ -165,27 +165,51 @@ try {
     return this.outputBuffer;
   }
 
-  public stop(): void {
-    if (this.process) {
-      // Send CmdPeriod to silence all audio
-      try {
-        this.process.stdin.write('CmdPeriod.run; Server.killAll;\n\x0c');
-        this.process.stdin.end();
-      } catch (err) {
-        // Ignore write/end errors if process is already dead or closing
+  public stop(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (!this.process) {
+        resolve();
+        return;
       }
       
-      const cp = this.process;
-      setTimeout(() => {
-        try {
-          cp.kill('SIGKILL');
-        } catch (err) {
-          // Ignore kill errors
-        }
-      }, 500);
-      
+      const processToKill = this.process;
       this.cleanupProcess();
-    }
+      
+      const onExit = () => {
+        cleanup();
+        resolve();
+      };
+      
+      const cleanup = () => {
+        processToKill.removeListener('exit', onExit);
+        processToKill.removeListener('close', onExit);
+        clearTimeout(killTimeout);
+      };
+
+      processToKill.on('exit', onExit);
+      processToKill.on('close', onExit);
+
+      const killTimeout = setTimeout(() => {
+        try {
+          processToKill.kill('SIGKILL');
+        } catch (err) {
+          // Ignore
+        }
+        onExit();
+      }, 500);
+
+      try {
+        processToKill.stdin.write('CmdPeriod.run; Server.killAll;\n\x0c');
+        processToKill.stdin.end();
+      } catch (err) {
+        try {
+          processToKill.kill('SIGKILL');
+        } catch (e) {
+          // Ignore
+        }
+        onExit();
+      }
+    });
   }
 
   private cleanupProcess(): void {
