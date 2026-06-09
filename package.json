@@ -1,6 +1,7 @@
 {
-  "name": "super-coding-agent",
+  "name": "scctl",
   "version": "1.0.0",
+  "type": "module",
   "description": "SuperCollider Coding Agent",
   "main": "dist/index.js",
   "scripts": {
@@ -11,6 +12,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "commander": "^11.1.0"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.0.0",
