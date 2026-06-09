@@ -18,7 +18,7 @@ program
     const sclangPath = discoverSclangPath();
     if (sclangPath) {
       console.log('STATUS: OK');
-      console.log(`Path: ${sclangPath}`);
+      console.log(`PATH: ${sclangPath}`);
     } else {
       console.log('STATUS: ERROR');
       console.error('Error: sclang binary not found');

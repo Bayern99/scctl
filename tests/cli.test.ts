@@ -12,7 +12,12 @@ describe('CLI Shell Interface', () => {
   });
 
   it('should support check command', () => {
-    const stdout = execSync('node ./dist/cli.js check').toString();
+    let stdout = '';
+    try {
+      stdout = execSync('node ./dist/cli.js check').toString();
+    } catch (err: any) {
+      stdout = err.stdout ? err.stdout.toString() : '';
+    }
     expect(stdout).toMatch(/STATUS: (OK|ERROR)/);
   });
 
@@ -20,7 +25,13 @@ describe('CLI Shell Interface', () => {
     const tempFile = path.resolve('temp_test_cli.scd');
     fs.writeFileSync(tempFile, '1 + 1');
     try {
-      const checkStdout = execSync('node ./dist/cli.js check').toString();
+      let checkStdout = '';
+      try {
+        checkStdout = execSync('node ./dist/cli.js check').toString();
+      } catch (err: any) {
+        checkStdout = err.stdout ? err.stdout.toString() : '';
+      }
+
       if (checkStdout.includes('STATUS: OK')) {
         const stdout = execSync(`node ./dist/cli.js run "${tempFile}"`).toString();
         expect(stdout).toBeDefined();
