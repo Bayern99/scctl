@@ -15,6 +15,6 @@ describe('Runtime Discovery', () => {
 
   it('should find sclang path on Windows', () => {
     const path = discoverSclangPath('win32');
-    expect(path).toBe('C:\\\\Program Files\\\\SuperCollider\\\\sclang.exe');
+    expect(path).toBe('C:\\Program Files\\SuperCollider\\sclang.exe');
   });
 });

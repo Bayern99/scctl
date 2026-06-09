@@ -8,7 +8,7 @@ export function discoverSclangPath(platform: string = process.platform): string 
       return defaultMacPath;
     }
   } else if (platform === 'win32') {
-    const defaultWinPath = 'C:\\\\Program Files\\\\SuperCollider\\\\sclang.exe';
+    const defaultWinPath = 'C:\\Program Files\\SuperCollider\\sclang.exe';
     if (fs.existsSync(defaultWinPath)) {
       return defaultWinPath;
     }
