@@ -31,12 +31,12 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Bayern99/scctl.git"
+    "url": "git+https://github.com/Bayern99/supercollider-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/Bayern99/scctl/issues"
+    "url": "https://github.com/Bayern99/supercollider-mcp/issues"
   },
-  "homepage": "https://github.com/Bayern99/scctl#readme",
+  "homepage": "https://github.com/Bayern99/supercollider-mcp#readme",
   "engines": {
     "node": ">=22.0.0"
   },

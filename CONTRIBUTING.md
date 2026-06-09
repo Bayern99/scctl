@@ -1,12 +1,12 @@
-# Contributing to scctl
+# Contributing to supercollider-mcp
 
 Thank you for your interest in contributing.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/Bayern99/scctl.git
-cd scctl
+git clone https://github.com/Bayern99/supercollider-mcp.git
+cd supercollider-mcp
 npm install
 npm run build
 node dist/cli.js check   # requires SuperCollider installed

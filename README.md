@@ -1,12 +1,12 @@
-# scctl
+# supercollider-mcp
 
-**SuperCollider control bridge for AI agents** — expose `sclang` to MCP clients and a small CLI.
+**MCP server for AI agents to control SuperCollider** — includes the `scctl` CLI.
 
-[![CI](https://github.com/Bayern99/scctl/actions/workflows/ci.yml/badge.svg)](https://github.com/Bayern99/scctl/actions/workflows/ci.yml)
+[![CI](https://github.com/Bayern99/supercollider-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Bayern99/supercollider-mcp/actions/workflows/ci.yml)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
-scctl wraps the [SuperCollider](https://supercollider.github.io/) `sclang` interpreter so tools like Claude Desktop, Cursor, and other [MCP](https://modelcontextprotocol.io) clients can check installation, evaluate code, and shut down audio cleanly. It also ships a standalone CLI.
+This project wraps the [SuperCollider](https://supercollider.github.io/) `sclang` interpreter as an [MCP](https://modelcontextprotocol.io) server so Claude Desktop, Cursor, and other clients can check installation, evaluate code, and shut down audio cleanly.
 
 ## Features
 
@@ -35,8 +35,8 @@ Default `sclang` locations:
 ## Install
 
 ```bash
-git clone https://github.com/Bayern99/scctl.git
-cd scctl
+git clone https://github.com/Bayern99/supercollider-mcp.git
+cd supercollider-mcp
 npm install
 npm run build
 ```
@@ -85,7 +85,7 @@ node dist/mcp/server.js
   "mcpServers": {
     "supercollider": {
       "command": "node",
-      "args": ["/absolute/path/to/scctl/dist/mcp/server.js"]
+      "args": ["/absolute/path/to/supercollider-mcp/dist/mcp/server.js"]
     }
   }
 }

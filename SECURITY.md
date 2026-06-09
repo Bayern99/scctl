@@ -10,7 +10,7 @@
 
 Please **do not** open public GitHub issues for security vulnerabilities.
 
-Report privately by opening a [GitHub Security Advisory](https://github.com/Bayern99/scctl/security/advisories/new) or emailing the repository owner.
+Report privately by opening a [GitHub Security Advisory](https://github.com/Bayern99/supercollider-mcp/security/advisories/new) or emailing the repository owner.
 
 We aim to acknowledge reports within 72 hours.
 
