@@ -1,5 +1,7 @@
 # supercollider-mcp
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 **MCP server for AI agents to control SuperCollider** — includes the `scctl` CLI.
 
 [![CI](https://github.com/Bayern99/supercollider-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Bayern99/supercollider-mcp/actions/workflows/ci.yml)
@@ -7,6 +9,17 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
 This project wraps the [SuperCollider](https://supercollider.github.io/) `sclang` interpreter as an [MCP](https://modelcontextprotocol.io) server so Claude Desktop, Cursor, and other clients can check installation, evaluate code, and shut down audio cleanly.
+
+## Why scctl?
+
+Most SuperCollider MCP servers ship a **music framework** (built-in synths, effects, songwriting skills) or expose **dozens of tools** that agents misuse. scctl is intentionally different:
+
+- **Thin driver** — native `sclang`, not a replacement language stack. Your sound logic stays in `.scd` files.
+- **Six tools, fixed workflow** — `check` → `eval` / `run_file` → `logs` → `render` → `stop`.
+- **Agent-debuggable** — `sc_logs` for post-window output; `sc_render` for WAV artifacts without hand-rolling `s.record`.
+- **CLI + MCP** — same runtime for humans (smoke, CI) and agents (Cursor, Claude Desktop).
+
+If you want an AI jam session out of the box, try [claude-collider](https://github.com/jeremyruppel/claude-collider). If you want a **reliable bridge into your own SuperCollider project**, use scctl.
 
 ## Features
 
@@ -53,6 +66,7 @@ Expected output when installed:
 ```text
 STATUS: OK
 PATH: /Applications/SuperCollider.app/Contents/MacOS/sclang
+SERVER: not_running
 ```
 
 ## Usage
@@ -100,7 +114,7 @@ node dist/mcp/server.js
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
-| `sc_check` | — | Return whether `sclang` is available and its path |
+| `sc_check` | — | Check `sclang` path and probe whether scsynth is running |
 | `sc_eval` | `code` (required) | Evaluate code in a persistent session (stays open) |
 | `sc_run_file` | `path` (required) | Read and evaluate a `.scd` file (session stays open) |
 | `sc_logs` | `tail` (optional) | Recent sclang post output from the active session |
@@ -112,7 +126,7 @@ node dist/mcp/server.js
 Typical design-phase loop: `sc_check` → `sc_eval` or `sc_run_file` → `sc_logs` (on error) → `sc_render` → `sc_stop`.
 
 - Use **absolute paths** for `.scd` files and WAV output (no default cwd).
-- Do not put formation/oracle/casting logic in SuperCollider code — only SynthDefs and playback.
+- Keep application/domain logic out of SuperCollider — use `.scd` for SynthDefs, playback, and render snippets only.
 - Persistent log tailing is **MCP-only** (`sc_logs`). The CLI is one-shot; use `run --tail-logs N` on failure.
 
 Design spec: [docs/design/scctl-scope-enhancement.md](docs/design/scctl-scope-enhancement.md)
