@@ -14,19 +14,19 @@ describe('Runtime Discovery', () => {
   });
 
   it('should find sclang path on macOS', () => {
-    vi.mocked(fs.existsSync).mockImplementation((p: string) => p.includes('SuperCollider'));
+    vi.mocked(fs.existsSync).mockImplementation((p: any) => p.includes('SuperCollider'));
     const path = discoverSclangPath('darwin');
     expect(path).toBe('/Applications/SuperCollider.app/Contents/MacOS/sclang');
   });
 
   it('should find sclang path on Windows', () => {
-    vi.mocked(fs.existsSync).mockImplementation((p: string) => p.includes('SuperCollider'));
+    vi.mocked(fs.existsSync).mockImplementation((p: any) => p.includes('SuperCollider'));
     const path = discoverSclangPath('win32');
     expect(path).toBe('C:\\Program Files\\SuperCollider\\sclang.exe');
   });
 
   it('should find sclang path on Linux', () => {
-    vi.mocked(fs.existsSync).mockImplementation((p: string) => p === '/usr/bin/sclang');
+    vi.mocked(fs.existsSync).mockImplementation((p: any) => p === '/usr/bin/sclang');
     const path = discoverSclangPath('linux');
     expect(path).toBe('/usr/bin/sclang');
   });
@@ -35,7 +35,7 @@ describe('Runtime Discovery', () => {
     const originalEnv = process.env.PATH;
     process.env.PATH = '/custom/bin:/another/bin';
     try {
-      vi.mocked(fs.existsSync).mockImplementation((p: string) => p === '/another/bin/sclang');
+      vi.mocked(fs.existsSync).mockImplementation((p: any) => p === '/another/bin/sclang');
       const path = discoverSclangPath('darwin');
       expect(path).toBe('/another/bin/sclang');
     } finally {
@@ -47,7 +47,7 @@ describe('Runtime Discovery', () => {
     const originalEnv = process.env.PATH;
     process.env.PATH = 'C:\\custom\\bin;C:\\another\\bin';
     try {
-      vi.mocked(fs.existsSync).mockImplementation((p: string) => p === 'C:\\another\\bin\\sclang.exe');
+      vi.mocked(fs.existsSync).mockImplementation((p: any) => p === 'C:\\another\\bin\\sclang.exe');
       const path = discoverSclangPath('win32');
       expect(path).toBe('C:\\another\\bin\\sclang.exe');
     } finally {
