@@ -107,7 +107,7 @@ describe('Sclang Process Controller', () => {
 
     controller.stop();
     
-    expect(mockStdin.write).toHaveBeenCalledWith('thisProcess.platform.killAll;\n\x0c');
+    expect(mockStdin.write).toHaveBeenCalledWith('CmdPeriod.run; Server.killAll;\n\x0c');
     
     await vi.advanceTimersByTimeAsync(500);
     expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');

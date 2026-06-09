@@ -89,7 +89,7 @@ try {
   public stop(): void {
     if (this.process) {
       // Send CmdPeriod to silence all audio
-      this.process.stdin.write('thisProcess.platform.killAll;\n\x0c');
+      this.process.stdin.write('CmdPeriod.run; Server.killAll;\n\x0c');
       setTimeout(() => {
         this.process?.kill('SIGKILL');
         this.process = null;
