@@ -1,12 +1,12 @@
-# Contributing to supercollider-mcp
+# Contributing to supercollider-pilot
 
 Thank you for your interest in contributing.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/Bayern99/supercollider-mcp.git
-cd supercollider-mcp
+git clone https://github.com/Bayern99/supercollider-pilot.git
+cd supercollider-pilot
 npm install
 npm run build
 node dist/cli.js check   # requires SuperCollider installed

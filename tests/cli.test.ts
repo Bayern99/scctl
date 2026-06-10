@@ -1,67 +1,66 @@
-import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
+import { beforeAll, describe, expect, it } from 'vitest';
 
-describe('CLI Shell Interface', () => {
+function runCli(command: string): { exitCode: number; stdout: string } {
+  try {
+    return {
+      exitCode: 0,
+      stdout: execSync(command).toString(),
+    };
+  } catch (err: any) {
+    return {
+      exitCode: err.status ?? 1,
+      stdout: [err.stdout?.toString?.() ?? '', err.stderr?.toString?.() ?? ''].join(''),
+    };
+  }
+}
+
+describe('CLI shell interface', () => {
   beforeAll(() => {
     execSync('npm run build');
   }, 15000);
 
-  it('should compile and support CLI options', () => {
+  it('prints general help', () => {
     const stdout = execSync('node ./dist/cli.js --help').toString();
     expect(stdout).toContain('scctl');
+    expect(stdout).toContain('status');
+    expect(stdout).toContain('health');
+    expect(stdout).toContain('reclaim');
   });
 
-  it('should support check command', () => {
-    let stdout = '';
-    try {
-      stdout = execSync('node ./dist/cli.js check').toString();
-    } catch (err: any) {
-      stdout = err.stdout ? err.stdout.toString() : '';
-    }
-    expect(stdout).toMatch(/STATUS: (OK|ERROR)/);
-    if (stdout.includes('STATUS: OK')) {
-      expect(stdout).toMatch(/SERVER: (running|not_running|unknown)/);
-    }
+  it('exposes command help for eval, logs, and render', () => {
+    expect(execSync('node ./dist/cli.js eval --help').toString()).toContain('Evaluate inline');
+    expect(execSync('node ./dist/cli.js logs --help').toString()).toContain('--tail');
+    expect(execSync('node ./dist/cli.js render --help').toString()).toContain('--duration');
   });
 
-  it('should support render command in help', () => {
-    const stdout = execSync('node ./dist/cli.js --help').toString();
-    expect(stdout).toContain('render');
+  it('returns structured JSON from check', () => {
+    const { stdout } = runCli('node ./dist/cli.js check');
+    const result = JSON.parse(stdout);
+
+    expect(result).toMatchObject({
+      success: expect.any(Boolean),
+      state: expect.any(String),
+      phase: 'check',
+      summary: expect.any(String),
+      raw_output: expect.any(String),
+    });
   });
 
-  it('should expose render options', () => {
-    const stdout = execSync('node ./dist/cli.js render --help').toString();
-    expect(stdout).toContain('-o');
-    expect(stdout).toContain('--duration');
+  it('returns structured JSON from status', () => {
+    const { stdout } = runCli('node ./dist/cli.js status');
+    const result = JSON.parse(stdout);
+
+    expect(result.phase).toBe('status');
+    expect(result.state).toMatch(/idle|stopped|degraded|engine_missing/);
   });
 
-  it('should expose run options', () => {
-    const stdout = execSync('node ./dist/cli.js run --help').toString();
-    expect(stdout).toContain('--tail-logs');
-  });
+  it('fails run with a structured invalid_argument result for missing files', () => {
+    const { exitCode, stdout } = runCli('node ./dist/cli.js run ./does-not-exist.scd');
+    const result = JSON.parse(stdout);
 
-  it('should fail render when sclang is missing', () => {
-    let checkStdout = '';
-    try {
-      checkStdout = execSync('node ./dist/cli.js check').toString();
-    } catch (err: any) {
-      checkStdout = err.stdout ? err.stdout.toString() : '';
-    }
-
-    if (checkStdout.includes('STATUS: OK')) {
-      return;
-    }
-
-    const tempFile = path.resolve('temp_test_render.scd');
-    fs.writeFileSync(tempFile, '{ SinOsc.ar(440) }.play;');
-    try {
-      expect(() => {
-        execSync(`node ./dist/cli.js render "${tempFile}" -o /tmp/out.wav`);
-      }).toThrow();
-    } finally {
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    }
+    expect(exitCode).toBe(1);
+    expect(result.success).toBe(false);
+    expect(result.error_kind).toBe('invalid_argument');
   });
 });

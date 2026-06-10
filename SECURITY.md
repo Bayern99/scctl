@@ -10,7 +10,7 @@
 
 Please **do not** open public GitHub issues for security vulnerabilities.
 
-Report privately by opening a [GitHub Security Advisory](https://github.com/Bayern99/supercollider-mcp/security/advisories/new) or emailing the repository owner.
+Report privately by opening a [GitHub Security Advisory](https://github.com/Bayern99/supercollider-pilot/security/advisories/new) or emailing the repository owner.
 
 We aim to acknowledge reports within 72 hours.
 
@@ -20,9 +20,9 @@ We aim to acknowledge reports within 72 hours.
 
 ### Safe usage
 
-- Run the MCP server **locally** only
+- Run the Pilot MCP server **locally** only
 - Connect only **trusted** MCP clients (e.g. Claude Desktop, Cursor on your own machine)
-- Do **not** expose the MCP server to the public internet
+- Do **not** expose the Pilot server to the public internet
 - Review AI-generated SuperCollider code before execution when the source is untrusted
 
 ### Out of scope

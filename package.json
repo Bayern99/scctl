@@ -2,7 +2,7 @@
   "name": "scctl",
   "version": "1.0.0",
   "type": "module",
-  "description": "Bridge SuperCollider sclang to AI agents via MCP and CLI",
+  "description": "SuperCollider Pilot — bridge sclang to AI agents via CLI and MCP transport",
   "bin": {
     "scctl": "./dist/cli.js"
   },
@@ -15,12 +15,14 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:live": "SCCTL_RUN_LIVE_SMOKE=1 vitest run tests/live-smoke.test.ts",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
     "supercollider",
     "sclang",
+    "pilot",
     "mcp",
     "model-context-protocol",
     "audio",
@@ -31,12 +33,12 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Bayern99/supercollider-mcp.git"
+    "url": "git+https://github.com/Bayern99/supercollider-pilot.git"
   },
   "bugs": {
-    "url": "https://github.com/Bayern99/supercollider-mcp/issues"
+    "url": "https://github.com/Bayern99/supercollider-pilot/issues"
   },
-  "homepage": "https://github.com/Bayern99/supercollider-mcp#readme",
+  "homepage": "https://github.com/Bayern99/supercollider-pilot#readme",
   "engines": {
     "node": ">=22.0.0"
   },

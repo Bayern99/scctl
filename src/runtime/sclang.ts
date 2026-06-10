@@ -3,45 +3,52 @@ import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 export interface SclangControllerOptions {
   executeTimeoutMs?: number;
   maxLogBytes?: number;
+  stopTimeoutMs?: number;
 }
 
+export interface RunScriptOptions {
+  completionMarkers: string[];
+  timeoutMs?: number;
+}
+
+export interface ScriptRunResult {
+  matchedMarker: string;
+  rawOutput: string;
+}
+
+interface PendingRun {
+  buffer: string;
+  completionMarkers: string[];
+  reject: (err: Error) => void;
+  resolve: (result: ScriptRunResult) => void;
+  timeout: NodeJS.Timeout;
+}
+
+const DEFAULT_BOOT_READY_MS = 1_500;
 const DEFAULT_EXECUTE_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_LOG_BYTES = 512_000;
-
-function wrapScCode(code: string, delim: string): string {
-  const body = code.trimEnd().replace(/;\s*$/, '');
-  return (
-    'fork {\n' +
-    '  try {\n' +
-    body + ';\n' +
-    '    "\\n' + delim + '_OK".postln;\n' +
-    '  } { |error|\n' +
-    '    "\\n' + delim + '_ERR".postln;\n' +
-    '    error.reportError;\n' +
-    '  };\n' +
-    '};\n'
-  );
-}
+const DEFAULT_STOP_TIMEOUT_MS = 1_000;
 
 export class SclangController {
   private process: ChildProcessWithoutNullStreams | null = null;
-  private path: string;
-  private outputBuffer: string = '';
-  private isExecuting: boolean = false;
-  private executeTimeoutMs: number;
-  private maxLogBytes: number;
-
+  private readonly path: string;
+  private outputBuffer = '';
   private bootPromise: Promise<void> | null = null;
-  private bootResolve: (() => void) | null = null;
   private bootReject: ((err: Error) => void) | null = null;
+  private bootResolve: (() => void) | null = null;
   private bootTimeout: NodeJS.Timeout | null = null;
-
-  private activeExecuteReject: ((err: Error) => void) | null = null;
+  private pendingRun: PendingRun | null = null;
+  private readonly executeTimeoutMs: number;
+  private readonly maxLogBytes: number;
+  private readonly stopTimeoutMs: number;
+  private stopInProgress = false;
+  private unexpectedExitError: Error | null = null;
 
   constructor(sclangPath: string, options: SclangControllerOptions = {}) {
     this.path = sclangPath;
     this.executeTimeoutMs = options.executeTimeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS;
     this.maxLogBytes = options.maxLogBytes ?? DEFAULT_MAX_LOG_BYTES;
+    this.stopTimeoutMs = options.stopTimeoutMs ?? DEFAULT_STOP_TIMEOUT_MS;
   }
 
   public boot(): Promise<void> {
@@ -52,57 +59,41 @@ export class SclangController {
       return Promise.resolve();
     }
 
+    this.unexpectedExitError = null;
     this.bootPromise = new Promise((resolve, reject) => {
-      try {
-        this.bootResolve = resolve;
-        this.bootReject = reject;
+      this.bootResolve = resolve;
+      this.bootReject = reject;
 
+      try {
         const cp = spawn(this.path, ['-i', 'scide']);
         this.process = cp;
 
         cp.stdin.on('error', () => {});
 
         cp.stdout.on('data', (data) => {
-          this.appendLog(data.toString());
+          this.handleOutput(data.toString());
         });
-
         cp.stderr.on('data', (data) => {
-          this.appendLog(data.toString());
+          this.handleOutput(data.toString());
         });
 
         cp.on('error', (err) => {
-          if (this.bootReject) {
-            this.bootReject(err);
-            this.bootReject = null;
-            this.bootResolve = null;
-          }
-          if (this.bootTimeout) {
-            clearTimeout(this.bootTimeout);
-            this.bootTimeout = null;
-          }
-          this.bootPromise = null;
+          this.rejectBoot(err);
+          this.rejectPendingRun(err);
           this.cleanupProcess();
         });
 
         cp.on('exit', (code, signal) => {
-          const exitErr = new Error(`sclang process exited unexpectedly with code ${code} and signal ${signal}`);
+          const exitErr = new Error(
+            `sclang process exited unexpectedly with code ${code} and signal ${signal}`,
+          );
 
-          if (this.bootReject) {
-            this.bootReject(exitErr);
-            this.bootReject = null;
-            this.bootResolve = null;
-          }
-          if (this.bootTimeout) {
-            clearTimeout(this.bootTimeout);
-            this.bootTimeout = null;
+          if (!this.stopInProgress) {
+            this.unexpectedExitError = exitErr;
           }
 
-          if (this.activeExecuteReject) {
-            this.activeExecuteReject(exitErr);
-            this.activeExecuteReject = null;
-          }
-
-          this.bootPromise = null;
+          this.rejectBoot(exitErr);
+          this.rejectPendingRun(exitErr);
           this.cleanupProcess();
         });
 
@@ -110,86 +101,58 @@ export class SclangController {
           this.bootTimeout = null;
           if (this.bootResolve) {
             this.bootResolve();
-            this.bootResolve = null;
-            this.bootReject = null;
           }
+          this.bootResolve = null;
+          this.bootReject = null;
           this.bootPromise = null;
-        }, 1500);
+        }, DEFAULT_BOOT_READY_MS);
       } catch (err: any) {
         this.bootPromise = null;
-        reject(err);
         this.bootResolve = null;
         this.bootReject = null;
+        reject(err);
       }
     });
 
     return this.bootPromise;
   }
 
-  public async execute(code: string): Promise<{ success: boolean; output: string }> {
+  public async runScript(
+    script: string,
+    options: RunScriptOptions,
+  ): Promise<ScriptRunResult> {
     if (!this.process) {
       throw new Error('sclang is not booted. Call boot() first.');
     }
-
-    if (this.isExecuting) {
+    if (this.pendingRun) {
       throw new Error('Concurrent execution is not supported');
     }
+    if (options.completionMarkers.length === 0) {
+      throw new Error('At least one completion marker is required');
+    }
 
-    this.isExecuting = true;
+    const timeoutMs = options.timeoutMs ?? this.executeTimeoutMs;
 
-    const delim = 'SC_EVAL_DONE_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-    const wrappedCode = wrapScCode(code, delim);
+    return new Promise<ScriptRunResult>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingRun = null;
+        reject(new Error(`Execution timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
 
-    return new Promise<{ success: boolean; output: string }>((resolve, reject) => {
-      this.activeExecuteReject = reject;
-      let runBuffer = '';
-
-      const dataHandler = (data: Buffer) => {
-        const chunk = data.toString();
-        runBuffer += chunk;
-        this.appendLog(chunk);
-
-        if (runBuffer.includes(`${delim}_OK`)) {
-          finish();
-          this.isExecuting = false;
-          this.activeExecuteReject = null;
-          resolve({
-            success: true,
-            output: runBuffer.replace(`${delim}_OK`, '').trim(),
-          });
-        } else if (runBuffer.includes(`${delim}_ERR`)) {
-          finish();
-          this.isExecuting = false;
-          this.activeExecuteReject = null;
-          resolve({
-            success: false,
-            output: runBuffer.replace(`${delim}_ERR`, '').trim(),
-          });
-        }
+      this.pendingRun = {
+        buffer: '',
+        completionMarkers: [...options.completionMarkers],
+        reject,
+        resolve,
+        timeout,
       };
-
-      const finish = () => {
-        this.process?.stdout.removeListener('data', dataHandler);
-        this.process?.stderr.removeListener('data', dataHandler);
-        clearTimeout(executeTimeout);
-      };
-
-      const executeTimeout = setTimeout(() => {
-        finish();
-        this.isExecuting = false;
-        this.activeExecuteReject = null;
-        reject(new Error(`Execution timed out after ${this.executeTimeoutMs}ms`));
-      }, this.executeTimeoutMs);
-
-      this.process!.stdout.on('data', dataHandler);
-      this.process!.stderr.on('data', dataHandler);
 
       try {
-        this.process!.stdin.write(wrappedCode + '\x0c');
+        const normalizedScript = script.endsWith('\n') ? script : `${script}\n`;
+        this.process?.stdin.write(`${normalizedScript}\x0c`);
       } catch (err: any) {
-        finish();
-        this.isExecuting = false;
-        this.activeExecuteReject = null;
+        clearTimeout(timeout);
+        this.pendingRun = null;
         reject(err);
       }
     });
@@ -199,44 +162,64 @@ export class SclangController {
     return this.outputBuffer;
   }
 
+  public getLogsTail(tail: number): string {
+    if (tail <= 0 || this.outputBuffer.length <= tail) {
+      return this.outputBuffer;
+    }
+    return this.outputBuffer.slice(-tail);
+  }
+
+  public hasProcess(): boolean {
+    return this.process !== null;
+  }
+
+  public isBusy(): boolean {
+    return this.pendingRun !== null;
+  }
+
+  public getUnexpectedExitError(): Error | null {
+    return this.unexpectedExitError;
+  }
+
+  public clearUnexpectedExitError(): void {
+    this.unexpectedExitError = null;
+  }
+
   public stop(): Promise<void> {
     return new Promise<void>((resolve) => {
       const cp = this.process;
       if (!cp) {
+        this.cleanupProcess();
         resolve();
         return;
       }
 
-      if (this.activeExecuteReject) {
-        const rejectExecute = this.activeExecuteReject;
-        this.activeExecuteReject = null;
-        this.isExecuting = false;
-        rejectExecute(new Error('Controller stopped'));
-      }
+      this.stopInProgress = true;
+      this.rejectPendingRun(new Error('Controller stopped'));
 
-      const onExit = () => {
+      const finish = () => {
         cleanup();
         this.cleanupProcess();
         resolve();
       };
 
       const cleanup = () => {
-        cp.removeListener('exit', onExit);
-        cp.removeListener('close', onExit);
+        cp.removeListener('exit', finish);
+        cp.removeListener('close', finish);
         clearTimeout(killTimeout);
       };
 
-      cp.on('exit', onExit);
-      cp.on('close', onExit);
+      cp.on('exit', finish);
+      cp.on('close', finish);
 
       const killTimeout = setTimeout(() => {
         try {
           cp.kill('SIGKILL');
         } catch {
-          // Ignore
+          // Ignore best-effort kill failures.
         }
-        onExit();
-      }, 500);
+        finish();
+      }, this.stopTimeoutMs);
 
       try {
         cp.stdin.write('CmdPeriod.run; Server.killAll;\n\x0c');
@@ -245,28 +228,79 @@ export class SclangController {
         try {
           cp.kill('SIGKILL');
         } catch {
-          // Ignore
+          // Ignore best-effort kill failures.
         }
-        onExit();
+        finish();
       }
     });
   }
 
-  private appendLog(chunk: string): void {
+  private handleOutput(chunk: string): void {
     this.outputBuffer += chunk;
     if (this.outputBuffer.length > this.maxLogBytes) {
       this.outputBuffer = this.outputBuffer.slice(-this.maxLogBytes);
     }
+
+    if (!this.pendingRun) {
+      return;
+    }
+
+    this.pendingRun.buffer += chunk;
+    const matchedMarker = this.pendingRun.completionMarkers.find((marker) =>
+      this.pendingRun?.buffer.includes(marker),
+    );
+
+    if (!matchedMarker) {
+      return;
+    }
+
+    const pending = this.pendingRun;
+    this.pendingRun = null;
+    clearTimeout(pending.timeout);
+
+    const cleanedOutput = pending.completionMarkers.reduce((output, marker) => {
+      return output.split(marker).join('');
+    }, pending.buffer).trim();
+
+    pending.resolve({
+      matchedMarker,
+      rawOutput: cleanedOutput,
+    });
+  }
+
+  private rejectBoot(err: Error): void {
+    if (this.bootTimeout) {
+      clearTimeout(this.bootTimeout);
+      this.bootTimeout = null;
+    }
+    if (this.bootReject) {
+      this.bootReject(err);
+    }
+    this.bootReject = null;
+    this.bootResolve = null;
+    this.bootPromise = null;
+  }
+
+  private rejectPendingRun(err: Error): void {
+    if (!this.pendingRun) {
+      return;
+    }
+
+    clearTimeout(this.pendingRun.timeout);
+    const pending = this.pendingRun;
+    this.pendingRun = null;
+    pending.reject(err);
   }
 
   private cleanupProcess(): void {
-    if (this.process) {
-      this.process.removeAllListeners();
-      this.process.stdout.removeAllListeners();
-      this.process.stderr.removeAllListeners();
-      this.process.stdin.removeAllListeners();
-      this.process = null;
+    if (this.bootTimeout) {
+      clearTimeout(this.bootTimeout);
+      this.bootTimeout = null;
     }
-    this.isExecuting = false;
+    this.bootPromise = null;
+    this.bootResolve = null;
+    this.bootReject = null;
+    this.process = null;
+    this.stopInProgress = false;
   }
 }

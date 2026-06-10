@@ -4,71 +4,62 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { discoverSclangPath } from '../runtime/discover.js';
+import { DriverResult } from '../runtime/driver-types.js';
+import { ScDriver } from '../runtime/driver.js';
 import { readScdFile } from '../runtime/sc-file.js';
-import { renderSession } from '../runtime/render.js';
-import {
-  formatCheckText,
-  probeServerWithNewController,
-} from '../runtime/server-probe.js';
-import { SclangController } from '../runtime/sclang.js';
 
 const AGENT_SC_RULE =
   ' Do not encode formation, oracle, or casting logic in SuperCollider code.';
 
-let activeController: SclangController | null = null;
+let activeDriver = new ScDriver();
 
-export function getActiveController(): SclangController | null {
-  return activeController;
+export function getActiveDriver(): ScDriver {
+  return activeDriver;
 }
 
-export function setActiveController(controller: SclangController | null): void {
-  activeController = controller;
+export function setActiveDriver(driver: ScDriver): void {
+  activeDriver = driver;
 }
 
-async function ensureController(): Promise<SclangController> {
-  if (activeController) {
-    return activeController;
-  }
-  const path = discoverSclangPath();
-  if (!path) {
-    throw new Error('sclang binary not found');
-  }
-  activeController = new SclangController(path);
-  await activeController.boot();
-  return activeController;
-}
-
-async function stopAndClearController(): Promise<void> {
-  if (!activeController) {
-    return;
-  }
+async function shutdownDriver(): Promise<void> {
   try {
-    await activeController.stop();
+    await activeDriver.stop();
   } catch {
-    // Ignore stop errors during cleanup
+    // Ignore best-effort shutdown failures.
   }
-  activeController = null;
 }
 
-const handleSignal = async () => {
-  await stopAndClearController();
+process.on('SIGINT', async () => {
+  await shutdownDriver();
   process.exit(0);
-};
+});
+process.on('SIGTERM', async () => {
+  await shutdownDriver();
+  process.exit(0);
+});
 
-process.on('SIGINT', handleSignal);
-process.on('SIGTERM', handleSignal);
+function asToolResult(result: DriverResult<unknown>) {
+  return {
+    content: [
+      {
+        type: 'text' as const,
+        text: JSON.stringify(result, null, 2),
+      },
+    ],
+    isError: !result.success,
+  };
+}
 
 export const server = new Server(
   {
-    name: 'scctl-mcp-server',
+    name: 'supercollider-pilot',
     version: '1.0.0',
   },
   {
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -77,7 +68,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'sc_check',
         description:
-          'Check sclang availability and probe whether the scsynth server is running (short eval, no persistent session).',
+          'Verify that the local SuperCollider engine is discoverable and the interpreter can be reached.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'sc_status',
+        description: 'Return the current driver session snapshot.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'sc_health',
+        description: 'Run a deeper health probe against the active driver session.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -86,7 +93,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'sc_eval',
         description:
-          'Evaluate SuperCollider code using a persistent sclang controller.' + AGENT_SC_RULE,
+          'Evaluate SuperCollider code in the active driver session. The result includes structured driver state and raw SuperCollider output.' +
+          AGENT_SC_RULE,
         inputSchema: {
           type: 'object',
           properties: {
@@ -101,7 +109,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'sc_run_file',
         description:
-          'Read and evaluate a .scd file in the active sclang session.' + AGENT_SC_RULE,
+          'Read and evaluate a .scd file in the active driver session.' + AGENT_SC_RULE,
         inputSchema: {
           type: 'object',
           properties: {
@@ -115,13 +123,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'sc_logs',
-        description: 'Return recent sclang post output from the active session. Use after sc_eval errors.',
+        description:
+          'Return the active session log buffer. Use together with structured driver results, not as the only source of truth.',
         inputSchema: {
           type: 'object',
           properties: {
             tail: {
               type: 'number',
-              description: 'Optional max characters from end of buffer',
+              description: 'Optional max characters from the end of the buffer',
             },
           },
         },
@@ -129,7 +138,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'sc_render',
         description:
-          'Record user SuperCollider code to a WAV file (R1 wrapper: boot, record, wait, stop). Do not call s.record or s.stopRecording in user code. Use the duration parameter for length; do not rely on Pdef/Routine timing. For audition without WAV, use sc_eval instead.' +
+          'Render SuperCollider code to a draft WAV file using a clean realtime render flow. Use path or code, not both.' +
           AGENT_SC_RULE,
         inputSchema: {
           type: 'object',
@@ -148,7 +157,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             duration: {
               type: 'number',
-              description: 'Record duration in seconds (default 5)',
+              description: 'Draft render duration in seconds (default 5)',
             },
           },
           required: ['out'],
@@ -156,7 +165,32 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'sc_stop',
-        description: 'Stop the active SuperCollider sclang controller',
+        description: 'Stop the active driver session and release audio resources.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'sc_reset',
+        description: 'Reset the active driver session without discarding it when possible.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'sc_reboot',
+        description: 'Stop the active driver session and start a fresh ready session.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'sc_reclaim',
+        description:
+          'Recover from a degraded or ambiguous session by discarding the local handle and creating a fresh ready session.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -167,110 +201,43 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+  const { arguments: args, name } = request.params;
 
   if (name === 'sc_check') {
-    const path = discoverSclangPath();
-    if (!path) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'sclang binary not found in standard paths or system PATH',
-          },
-        ],
-        isError: true,
-      };
-    }
-    const serverStatus = await probeServerWithNewController(path);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: formatCheckText(path, serverStatus),
-        },
-      ],
-    };
+    return asToolResult(await activeDriver.check());
+  }
+
+  if (name === 'sc_status') {
+    return asToolResult(await activeDriver.status());
+  }
+
+  if (name === 'sc_health') {
+    return asToolResult(await activeDriver.health());
   }
 
   if (name === 'sc_eval') {
     const code = args?.code;
-    if (code === undefined || code === null || code === '') {
-      return {
-        content: [{ type: 'text', text: 'Missing required argument: code' }],
-        isError: true,
-      };
-    }
     if (typeof code !== 'string') {
-      return {
-        content: [{ type: 'text', text: 'Argument "code" must be a string.' }],
-        isError: true,
-      };
+      return asToolResult(
+        await activeDriver.eval(typeof code === 'undefined' ? '' : String(code)),
+      );
     }
 
-    try {
-      const controller = await ensureController();
-      const result = await controller.execute(code);
-      return {
-        content: [{ type: 'text', text: result.output }],
-        isError: !result.success,
-      };
-    } catch (err: any) {
-      await stopAndClearController();
-      return {
-        content: [{ type: 'text', text: `Execution failed: ${err.message}` }],
-        isError: true,
-      };
-    }
+    return asToolResult(await activeDriver.eval(code));
   }
 
   if (name === 'sc_run_file') {
     const filePath = args?.path;
-    if (filePath === undefined || filePath === null || filePath === '') {
-      return {
-        content: [{ type: 'text', text: 'Missing required argument: path' }],
-        isError: true,
-      };
-    }
     if (typeof filePath !== 'string') {
-      return {
-        content: [{ type: 'text', text: 'Argument "path" must be a string.' }],
-        isError: true,
-      };
+      return asToolResult(await activeDriver.runFile('', readScdFile));
     }
 
-    try {
-      const code = readScdFile(filePath);
-      const controller = await ensureController();
-      const result = await controller.execute(code);
-      return {
-        content: [{ type: 'text', text: result.output }],
-        isError: !result.success,
-      };
-    } catch (err: any) {
-      await stopAndClearController();
-      return {
-        content: [{ type: 'text', text: `Execution failed: ${err.message}` }],
-        isError: true,
-      };
-    }
+    return asToolResult(await activeDriver.runFile(filePath, readScdFile));
   }
 
   if (name === 'sc_logs') {
-    if (!activeController) {
-      return {
-        content: [{ type: 'text', text: 'No active sclang session' }],
-        isError: true,
-      };
-    }
-    let text = activeController.getLogs();
-    const tail = args?.tail;
-    if (typeof tail === 'number' && tail > 0 && text.length > tail) {
-      text = text.slice(-tail);
-    }
-    return {
-      content: [{ type: 'text', text }],
-    };
+    const tail = typeof args?.tail === 'number' ? args.tail : undefined;
+    return asToolResult(await activeDriver.logs(tail));
   }
 
   if (name === 'sc_render') {
@@ -280,100 +247,54 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const hasPath = typeof filePath === 'string' && filePath !== '';
     const hasCode = typeof code === 'string' && code !== '';
 
-    if (out === undefined || out === null || typeof out !== 'string' || out === '') {
-      return {
-        content: [{ type: 'text', text: 'Missing required argument: out' }],
-        isError: true,
-      };
-    }
-    if (hasPath === hasCode) {
-      return {
-        content: [{ type: 'text', text: 'Provide exactly one of path or code' }],
-        isError: true,
-      };
+    if (typeof out !== 'string' || out === '' || hasPath === hasCode) {
+      return asToolResult(
+        await activeDriver.render({
+          durationSec: typeof args?.duration === 'number' ? args.duration : undefined,
+          outPath: typeof out === 'string' ? out : '',
+          userCode: '',
+        }),
+      );
     }
 
-    let userCode: string;
-    try {
-      userCode = hasPath ? readScdFile(filePath as string) : (code as string);
-    } catch (err: any) {
-      return {
-        content: [{ type: 'text', text: `Execution failed: ${err.message}` }],
-        isError: true,
-      };
-    }
-
-    const sclangPath = discoverSclangPath();
-    if (!sclangPath) {
-      return {
-        content: [{ type: 'text', text: 'sclang binary not found' }],
-        isError: true,
-      };
-    }
-
-    await stopAndClearController();
-    const controller = new SclangController(sclangPath);
-    activeController = controller;
-
-    const duration =
-      typeof args?.duration === 'number' && args.duration > 0 ? args.duration : 5;
-
-    try {
-      const result = await renderSession(controller, {
-        userCode,
-        outPath: out,
-        durationSec: duration,
-      });
-      activeController = null;
-
-      if (!result.success) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Render failed.\n${result.output}\nWAV: ${result.outPath} (${result.bytes} bytes)`,
-            },
-          ],
-          isError: true,
-        };
+    let userCode = code as string;
+    if (hasPath) {
+      try {
+        userCode = readScdFile(filePath as string);
+      } catch (err: any) {
+        return asToolResult(
+          await activeDriver.render({
+            durationSec: typeof args?.duration === 'number' ? args.duration : undefined,
+            outPath: out,
+            userCode: '',
+          }),
+        );
       }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `WAV: ${result.outPath} (${result.bytes} bytes)\n${result.output}`,
-          },
-        ],
-      };
-    } catch (err: any) {
-      await stopAndClearController();
-      return {
-        content: [{ type: 'text', text: `Execution failed: ${err.message}` }],
-        isError: true,
-      };
     }
+
+    return asToolResult(
+      await activeDriver.render({
+        durationSec: typeof args?.duration === 'number' ? args.duration : undefined,
+        outPath: out,
+        userCode,
+      }),
+    );
   }
 
   if (name === 'sc_stop') {
-    if (activeController) {
-      try {
-        await activeController.stop();
-      } catch (err: any) {
-        activeController = null;
-        return {
-          content: [{ type: 'text', text: `Failed to stop: ${err.message}` }],
-          isError: true,
-        };
-      }
-      activeController = null;
-      return {
-        content: [{ type: 'text', text: 'sclang controller stopped successfully' }],
-      };
-    }
-    return {
-      content: [{ type: 'text', text: 'No active sclang controller running' }],
-    };
+    return asToolResult(await activeDriver.stop());
+  }
+
+  if (name === 'sc_reset') {
+    return asToolResult(await activeDriver.reset());
+  }
+
+  if (name === 'sc_reboot') {
+    return asToolResult(await activeDriver.reboot());
+  }
+
+  if (name === 'sc_reclaim') {
+    return asToolResult(await activeDriver.reclaim());
   }
 
   throw new Error(`Unknown tool: ${name}`);
@@ -389,10 +310,14 @@ const nodePath = process.argv[1];
 if (nodePath && import.meta.url) {
   try {
     const modulePath = fileURLToPath(import.meta.url);
-    if (nodePath === modulePath || nodePath.endsWith('server.ts') || nodePath.endsWith('server.js')) {
+    if (
+      nodePath === modulePath ||
+      nodePath.endsWith('server.ts') ||
+      nodePath.endsWith('server.js')
+    ) {
       startMcpServer().catch(console.error);
     }
   } catch {
-    // Ignore
+    // Ignore module path detection failures.
   }
 }
