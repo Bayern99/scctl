@@ -1,24 +1,25 @@
-# supercollider-mcp
+# supercollider-pilot
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**MCP server for AI agents to control SuperCollider** — includes the `scctl` CLI.
+**SuperCollider Pilot — structured agent driver for SuperCollider** — includes the `scctl` CLI and an MCP transport.
 
-[![CI](https://github.com/Bayern99/supercollider-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Bayern99/supercollider-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/Bayern99/supercollider-pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/Bayern99/supercollider-pilot/actions/workflows/ci.yml)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
-Wraps the [SuperCollider](https://supercollider.github.io/) `sclang` interpreter as an [MCP](https://modelcontextprotocol.io) server (six tools) and a matching CLI. Check install, evaluate `.scd` files, tail post output, record WAV, stop cleanly.
+Wraps the [SuperCollider](https://supercollider.github.io/) `sclang` interpreter as **Pilot**, a single-session local driver with a matching CLI and [MCP](https://modelcontextprotocol.io) transport. Pilot keeps one active local session, returns structured results, exposes recovery actions, and keeps raw SuperCollider output alongside machine-readable state.
 
 ## Features
 
 - Cross-platform `sclang` discovery (macOS, Windows, Linux, plus `PATH` fallback)
-- Persistent `SclangController` with delimiter-based stdout/stderr parsing
-- MCP tools: `sc_check`, `sc_eval`, `sc_run_file`, `sc_logs`, `sc_render`, `sc_stop`
-- CLI: `scctl check`, `scctl run <file.scd>`, `scctl render <file.scd> -o out.wav`
-- R1 render wrapper: boot → user code → record → wait → stop → verify WAV
-- Graceful shutdown with SIGINT/SIGTERM handling and execute timeout (default 120s)
-- Vitest coverage for discovery, runtime, CLI, and MCP routing
+- Single-session driver runtime with explicit state: `engine_missing -> idle -> booting -> ready -> busy -> degraded -> stopping -> stopped`
+- Structured results for every action: `success`, `state`, `phase`, `session_id`, `recoverable`, `error_kind`, `summary`, `raw_output`
+- Recovery surface: `sc_stop`, `sc_reset`, `sc_reboot`, `sc_reclaim`
+- Pilot MCP tools: `sc_check`, `sc_status`, `sc_health`, `sc_eval`, `sc_run_file`, `sc_logs`, `sc_render`, `sc_stop`, `sc_reset`, `sc_reboot`, `sc_reclaim`
+- CLI commands: `check`, `status`, `health`, `eval`, `run`, `logs`, `render`, `stop`, `reset`, `reboot`, `reclaim`
+- Realtime draft render flow that boots, records, verifies WAV output, and tears the session down cleanly
+- Vitest coverage for protocol helpers, runtime, Pilot routing, CLI behavior, and optional live smoke
 
 ## Requirements
 
@@ -38,8 +39,8 @@ Default `sclang` locations:
 ## Install
 
 ```bash
-git clone https://github.com/Bayern99/supercollider-mcp.git
-cd supercollider-mcp
+git clone https://github.com/Bayern99/supercollider-pilot.git
+cd supercollider-pilot
 npm install
 npm run build
 ```
@@ -50,39 +51,45 @@ Verify SuperCollider is reachable:
 node dist/cli.js check
 ```
 
-Expected output when installed:
-
-```text
-STATUS: OK
-PATH: /Applications/SuperCollider.app/Contents/MacOS/sclang
-SERVER: not_running
-```
+Expected output when installed: structured JSON with `success`, `state`, and `summary`.
 
 ## Usage
 
 ### CLI
 
 ```bash
-# Check installation
+# Check engine reachability
 node dist/cli.js check
 
-# Run a .scd file (one-shot; exits after eval)
+# Inspect current session state
+node dist/cli.js status
+node dist/cli.js health
+
+# Evaluate inline code
+node dist/cli.js eval "{ SinOsc.ar(440, 0, 0.05) }.play;"
+
+# Run a .scd file
 node dist/cli.js run path/to/script.scd
 
-# On failure, print last N log characters
-node dist/cli.js run path/to/script.scd --tail-logs 500
+# Inspect logs from the active session
+node dist/cli.js logs --tail 500
 
-# Record a .scd file to WAV (R1 wrapper)
+# Record a .scd file to WAV
 node dist/cli.js render path/to/script.scd -o /tmp/out.wav -d 5
+
+# Recovery actions
+node dist/cli.js reset
+node dist/cli.js reboot
+node dist/cli.js reclaim
 
 # Optional global install
 npm link
 scctl check
 ```
 
-### MCP server
+### Pilot server (MCP)
 
-Start the server (stdio transport):
+Start the Pilot MCP server (stdio transport):
 
 ```bash
 node dist/mcp/server.js
@@ -93,9 +100,9 @@ node dist/mcp/server.js
 ```json
 {
   "mcpServers": {
-    "supercollider": {
+    "supercollider-pilot": {
       "command": "node",
-      "args": ["/absolute/path/to/supercollider-mcp/dist/mcp/server.js"]
+      "args": ["/absolute/path/to/supercollider-pilot/dist/mcp/server.js"]
     }
   }
 }
@@ -103,20 +110,26 @@ node dist/mcp/server.js
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
-| `sc_check` | — | Check `sclang` path and probe whether scsynth is running |
-| `sc_eval` | `code` (required) | Evaluate code in a persistent session (stays open) |
-| `sc_run_file` | `path` (required) | Read and evaluate a `.scd` file (session stays open) |
-| `sc_logs` | `tail` (optional) | Recent sclang post output from the active session |
-| `sc_render` | `out` (required), `path` or `code`, `duration` | Record to WAV; always stops session after |
-| `sc_stop` | — | Stop synthesis, release audio, shut down `sclang` |
+| `sc_check` | — | Verify engine discovery and interpreter reachability |
+| `sc_status` | — | Return the current driver session snapshot |
+| `sc_health` | — | Probe active-session health and server readiness |
+| `sc_eval` | `code` (required) | Evaluate inline code in the active session |
+| `sc_run_file` | `path` (required) | Read and evaluate a `.scd` file in the active session |
+| `sc_logs` | `tail` (optional) | Return the active session log buffer |
+| `sc_render` | `out` (required), `path` or `code`, `duration` | Render a draft WAV and stop the session afterward |
+| `sc_stop` | — | Stop the active session |
+| `sc_reset` | — | Clean the active session without discarding it |
+| `sc_reboot` | — | Replace the active session with a fresh ready session |
+| `sc_reclaim` | — | Recover from a degraded or ambiguous local session |
 
 ### Agent workflow
 
-Typical design-phase loop: `sc_check` → `sc_eval` or `sc_run_file` → `sc_logs` (on error) → `sc_render` → `sc_stop`.
+Typical design-phase loop: `sc_check` → `sc_status`/`sc_health` → `sc_eval` or `sc_run_file` → `sc_logs` (on error) → `sc_render` → `sc_reclaim` or `sc_stop`.
 
 - Use **absolute paths** for `.scd` files and WAV output (no default cwd).
 - Keep application/domain logic out of SuperCollider — use `.scd` for SynthDefs, playback, and render snippets only.
-- Persistent log tailing is **MCP-only** (`sc_logs`). The CLI is one-shot; use `run --tail-logs N` on failure.
+- The driver is **single-session and local-first**. Recovery is explicit; use `sc_reset`, `sc_reboot`, or `sc_reclaim` instead of guessing from raw logs alone.
+- CLI output is structured JSON. Raw SuperCollider output is preserved in `raw_output`.
 
 Design spec: [docs/design/scctl-scope-enhancement.md](docs/design/scctl-scope-enhancement.md)
 
@@ -124,12 +137,18 @@ Design spec: [docs/design/scctl-scope-enhancement.md](docs/design/scctl-scope-en
 
 ```bash
 npm run build
-node dist/cli.js check    # expect STATUS, PATH, and SERVER lines
+node dist/cli.js check    # expect structured JSON with success/state/summary
 node dist/cli.js render fixtures/smoke/sine-play.scd -o /tmp/scctl-smoke.wav -d 2
 test -s /tmp/scctl-smoke.wav
 ```
 
 If smoke fails locally, see [docs/smoke-troubleshooting.md](docs/smoke-troubleshooting.md).
+
+Optional live integration suite:
+
+```bash
+npm run test:live
+```
 
 ### Examples
 
@@ -141,29 +160,33 @@ node record-music.js  # Record output to ./music.wav
 ## Architecture
 
 ```text
-MCP client / CLI
+Pilot client / CLI
        │
        ▼
 src/mcp/server.ts  or  src/cli.ts
        │
        ▼
+ScDriver (src/runtime/driver.ts)
+       │  structured state + recovery + protocol helpers
+       ▼
 SclangController (src/runtime/sclang.ts)
-       │  stdin/stdout delimiter protocol
+       │  raw script execution + completion markers
        ▼
 sclang → scsynth → audio output
 ```
 
 Key constraints:
 
-- One `sclang` process per controller (single audio device owner)
-- Serial execution only — concurrent `execute()` calls are rejected
+- One active local session at a time
+- Serial execution only — concurrent script runs are rejected
+- Driver success/failure is decided from protocol completion plus raw SuperCollider error detection, not from free-form post text alone
 - Shutdown sends `CmdPeriod.run; Server.killAll;` then SIGKILL if needed
 
 See [docs/design/control-approach-notes.md](docs/design/control-approach-notes.md) for design background.
 
 ## Security
 
-`sc_eval` runs arbitrary SuperCollider code with host filesystem and process access. Use only with trusted local MCP clients. Do not expose the MCP server on a network.
+`sc_eval` runs arbitrary SuperCollider code with host filesystem and process access. Use only with trusted local Pilot/MCP clients. Do not expose the Pilot server on a network.
 
 Details: [SECURITY.md](SECURITY.md).
 
@@ -173,6 +196,7 @@ Details: [SECURITY.md](SECURITY.md).
 npm run typecheck
 npm run build
 npm test
+npm run test:live   # optional, requires local SuperCollider
 ```
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).

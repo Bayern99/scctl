@@ -9,38 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- P4 `sc_check` server probe (`server: running|not_running|unknown`) via `src/runtime/server-probe.ts`
-- CLI `check` prints `SERVER:` line; docs/smoke-troubleshooting.md for local SC issues
-- MCP `sc_logs` — tail sclang post buffer from active session
-- MCP `sc_run_file` — evaluate `.scd` file in persistent session
-- MCP `sc_render` — R1 wrapper record to WAV (`path` or `code`, `out`, `duration`)
-- CLI `scctl render <file> -o <wav>` and `scctl run --tail-logs <n>`
-- `readScdFile` helper (`src/runtime/sc-file.ts`) and `renderSession` (`src/runtime/render.ts`)
-- Smoke fixture `fixtures/smoke/sine-play.scd`
-- GitHub Actions CI, Dependabot, LICENSE, SECURITY.md, CONTRIBUTING.md
-- `SclangControllerOptions`: execute timeout (default 120s), log buffer cap
-- Example scripts: `play-music.js`, `record-music.js`
-- Comprehensive README
+- V1 `ScDriver` single-session runtime with explicit state and error semantics
+- Protocol helpers with marker-based script completion in `src/runtime/protocol.ts`
+- Driver control surface: `status`, `health`, `reset`, `reboot`, `reclaim`
+- Structured JSON results for all CLI commands
+- Pilot MCP tools: `sc_status`, `sc_health`, `sc_reset`, `sc_reboot`, `sc_reclaim`
+- Protocol/driver unit tests and optional live smoke suite (`npm run test:live`)
+- Realtime draft render flow that boots, records, verifies WAV output, and tears down cleanly
 
 ### Changed
 
-- `record-music.js` uses shared `renderSession()` (R1 wrapper)
-- `sc_render` MCP description: Pdef/Routine duration, sc_eval for audition
-- CI no longer installs SuperCollider; CLI tests are help/structure only (mock-based)
+- Project branding: **SuperCollider Pilot** (`supercollider-pilot`); MCP remains the agent transport
+- MCP and CLI now share the same `ScDriver` runtime
+- `SclangController` executes marker-based scripts instead of wrapper-plus-text-guessing
+- README, troubleshooting docs, and bilingual install guides updated for Pilot
 
-### Changed (prior)
+### Removed
 
-- `wrapScCode()` uses string concatenation instead of template literals (injection fix)
-- `stop()` rejects in-flight execute before shutdown; cleanup after process exit
-- Example scripts use `s.boot; s.sync;` instead of async `waitForBoot`
-
-### Fixed
-
-- CI failure when Ubuntu runner ran real `scctl run` against headless sclang (SIGABRT)
-- `wrapScCode()` runs user code in a `fork` so `s.sync` and `.wait` work in eval/render paths
-- Execute hangs when delimiter appears on stderr
-- Concurrent `boot()` could spawn multiple sclang processes
-- `record-music.js` hardcoded absolute path replaced with `process.cwd()`
+- Obsolete `src/runtime/render.ts` and `src/runtime/server-probe.ts` paths
 
 ## [1.0.0] - 2026-06-09
 
@@ -52,5 +38,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SclangController` with delimiter-based execute protocol
 - Vitest test suite
 
-[Unreleased]: https://github.com/Bayern99/supercollider-mcp/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Bayern99/supercollider-mcp/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Bayern99/supercollider-pilot/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Bayern99/supercollider-pilot/releases/tag/v1.0.0
