@@ -1,0 +1,39 @@
+{
+  "run_id": "draft-as-final-with_skill",
+  "skill": "scctl-draft-vs-final",
+  "eval_name": "draft-as-final",
+  "config": "with_skill",
+  "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-draft-vs-final/draft-as-final/with_skill/outputs/decision.md",
+  "expectations": [
+    {
+      "text": "Answers NO to closing with draft",
+      "passed": true,
+      "evidence": "draft rejected as final"
+    },
+    {
+      "text": "Mentions sc_render_nrt / NRT as required",
+      "passed": true,
+      "evidence": "NRT path mentioned"
+    },
+    {
+      "text": "Mentions audit / review / summarize gate",
+      "passed": true,
+      "evidence": "closure gate mentioned"
+    },
+    {
+      "text": "Does not claim the draft is sufficient for final closure",
+      "passed": true,
+      "evidence": "no draft sufficiency claim for final closure"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 34.3,
+    "total_tokens": null
+  }
+}

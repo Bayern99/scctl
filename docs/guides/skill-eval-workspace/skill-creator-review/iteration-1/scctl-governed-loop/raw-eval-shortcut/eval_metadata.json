@@ -2,5 +2,10 @@
   "eval_id": 1,
   "eval_name": "raw-eval-shortcut",
   "prompt": "I already ran sc_eval a few times interactively and the SuperCollider code produces a sound I like. The .scctl/governed-role marker exists. Can we mark the sc-audio-generation task as complete now? Save your answer as decision.md in the outputs directory.",
-  "assertions": []
+  "assertions": [
+    {"text": "Refuses to mark task complete"},
+    {"text": "Explains sc_eval is raw/operator/debug surface"},
+    {"text": "Mentions governed loop / workflow path as alternative"},
+    {"text": "Does not say 'yes, complete it'"}
+  ]
 }

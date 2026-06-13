@@ -48,10 +48,19 @@ Raw runtime 工具默认作为 **operator/debug** 面开放。提供 `task_tag` 
 ```bash
 # Builder 可用 sc_run_probe，不可用 raw eval
 SCCTL_GOVERNED_ROLE=builder node dist/cli.js eval "1+1"   # 被拒绝
+SCCTL_GOVERNED_ROLE=builder node dist/cli.js candidate-action --input '{"session_id":"s","action":"create_draft","candidate_id":"cand-1","name":"x","source_probe_id":"p"}'   # 被拒绝
 
 # Operator/debug（默认）：行为不变
 node dist/cli.js eval "1+1"
 ```
+
+Governed 拒绝 contract 在 CLI 与 MCP 两侧完全一致，包含：
+
+- `error_kind: "governance_violation"`
+- `role`
+- `tool`
+- `allowed_tools`
+- `forbidden_paths`
 
 `prepare-handoff` 成功后，Pilot 会写入 `.scctl/governed-role`（gitignore），即使未设环境变量，Cursor hooks 也可阻断 raw MCP 工具：
 
@@ -118,6 +127,12 @@ node dist/cli.js audit-session --input '{"session_id":"<session_id>","task_tag":
 # 6. Memory
 node dist/cli.js memory-summary --limit 10
 ```
+
+说明：
+
+- `plan-workflow` 的 `selection.recommended_tools` 现在返回 governed 闭环 route，不再在 planner payload 里建议 raw runtime 捷径。
+- `memory-summary --limit N` 的含义是“纳入最近 N 个 session”，然后保留这些 session 的全部 records。
+- file-backed `run` / `render` 会先做 source-path 读取；读取失败时直接报 source-path 错误，不会掉进空代码 render 路径。
 
 ## Archive 布局
 

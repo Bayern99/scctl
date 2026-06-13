@@ -267,14 +267,14 @@ describe('buildArchiveMemorySummary', () => {
       session_id: 'session-c',
     });
 
-    expect(byCandidate.records_considered).toBe(2);
+    expect(byCandidate.records_considered).toBe(3);
     expect(byCandidate.recent_sessions).toEqual([
       {
         session_id: 'session-b',
         last_recorded_at: '2026-06-13T00:00:10.000Z',
-        record_count: 2,
+        record_count: 3,
         audit_count: 0,
-        kinds: ['review_note', 'session_summary'],
+        kinds: ['candidate_lifecycle', 'review_note', 'session_summary'],
         candidate_ids: ['cand-2'],
         probe_ids: [],
         outcomes: ['failure'],
@@ -284,7 +284,7 @@ describe('buildArchiveMemorySummary', () => {
       accepted: 0,
       candidate: 0,
       draft: 0,
-      rejected: 0,
+      rejected: 1,
       revisit: 0,
     });
     expect(byCandidate.review_rejection_reason_distribution).toEqual({

@@ -16,7 +16,7 @@
 
 **Workflow / Orchestration** 定义任务如何立项、实验、总结、审计。Governed 任务从 `sc_prepare_handoff` 开始，以 `sc_audit_session` 结束；中间步骤见下文「Governed 工作流」。
 
-**Harness** 在 MCP/CLI 入口和 Cursor hooks 层 enforce 工具 allowlist（`SCCTL_GOVERNED_ROLE`、`hooks/scctl-governed-preflight.js`）。Completion 规则（`src/harness/completion-rules.ts`）在带 `task_tag` 时附加 `compliance` 快照。
+**Harness** 在 MCP/CLI 入口和 Cursor hooks 层 enforce 工具 allowlist（`SCCTL_GOVERNED_ROLE`、`hooks/scctl-governed-preflight.js`）。这层现在覆盖 runtime、workflow、orchestration 全部工具，而不是只拦 raw runtime。Completion 规则（`src/harness/completion-rules.ts`）在带 `task_tag` 时附加 `compliance` 快照。
 
 **KB**（`docs/superpowers/kb/`）在 handoff 时以 `kb_snapshot` 注入 Agent：项目规则、渲染检查项、允许的基础 primitive、已知失败模式、角色策略 JSON。
 

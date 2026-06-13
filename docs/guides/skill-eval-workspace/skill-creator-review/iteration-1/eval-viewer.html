@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "scctl-skills-review", "runs": [{"id": "scctl-draft-vs-final-draft-as-final-with_skill", "prompt": "The user asked for a final deliverable WAV for a SuperCollider composition task. We have already rendered a draft with sc_render and it sounds good enough. The governed marker indicates final_nrt=true. Can we close the task with the draft WAV? If not, what exactly should we do? Save your answer as decision.md in the outputs directory.", "eval_id": 0, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: Can the draft WAV close a `final_nrt` task?\n\n**No.** The task cannot be closed with the draft WAV.\n\n## Reasoning\n\nThe skill `scctl-draft-vs-final` and project policy are explicit on this point:\n\n- `sc_render` / `render` is the **draft** tier, intended only for fast iteration and quick listens.\n- `sc_render_nrt` / `render-nrt` is the **final-quality** tier.\n- When the governed marker or task spec declares `final_nrt=true`, closure requires an NRT artifact.\n\n> \"Draft vs Final Split: `sc_render` is draft path; `sc_render_nrt` is final-quality path. Declaring `final_nrt` tasks cannot use draft artifact to close.\" \u2014 `AGENTS.md`\n\n> \"`final_nrt` tasks fail audit without NRT artifact\" \u2014 `scctl-draft-vs-final` skill Common Mistakes\n\nIn governed mode with `final_nrt`, a draft render is rejected by RBAC and hooks. \"Sounds good enough\" is not a valid reason to bypass the final-quality path.\n\n## What to do instead\n\n1. Do **not** submit the draft WAV as the deliverable.\n2. Run the composition through the final-quality path using `sc_render_nrt` (MCP tool) or `scctl render-nrt <file>` (CLI).\n3. Ensure the source `.scd` file uses absolute paths and returns an Event/Dictionary with `\\score` and `\\duration`, as required by NRT.\n4. Verify the rendered NRT WAV artifact exists and is non-empty.\n5. Record a `summarize_session` result before closure.\n6. Add an explicit review note before promoting the artifact as final.\n7. Run `audit_session` if the task is governed.\n\nOnly the NRT-rendered WAV may be used to close a task marked `final_nrt=true`.\n"}], "grading": {"run_id": "draft-as-final-with_skill", "skill": "scctl-draft-vs-final", "eval_name": "draft-as-final", "config": "with_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-draft-vs-final/draft-as-final/with_skill/outputs/decision.md", "expectations": [{"text": "Answers NO to closing with draft", "passed": true, "evidence": "draft rejected as final"}, {"text": "Mentions sc_render_nrt / NRT as required", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions audit / review / summarize gate", "passed": true, "evidence": "closure gate mentioned"}, {"text": "Does not claim the draft is sufficient for final closure", "passed": true, "evidence": "no draft sufficiency claim for final closure"}], "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 34.3, "total_tokens": null}}}, {"id": "scctl-draft-vs-final-draft-as-final-without_skill", "prompt": "The user asked for a final deliverable WAV for a SuperCollider composition task. We have already rendered a draft with sc_render and it sounds good enough. The governed marker indicates final_nrt=true. Can we close the task with the draft WAV? If not, what exactly should we do? Save your answer as decision.md in the outputs directory.", "eval_id": 0, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: Can the draft WAV close a `final_nrt=true` task?\n\n**Answer: No.**\n\n## Reasoning\n\nThe project enforces an explicit **Draft vs Final Split**:\n\n- `sc_render` is the **draft** render path.\n- `sc_render_nrt` is the **final-quality NRT** render path.\n- A task that declares `final_nrt=true` **cannot** be closed with a draft artifact, regardless of how good the draft sounds.\n\nThis rule is documented in:\n\n- `AGENTS.md` \u00a78.5: \"`sc_render` \u662f draft path\uff1b`sc_render_nrt` \u662f final-quality path\u3002\u58f0\u660e `final_nrt` \u7684\u4efb\u52a1\u4e0d\u80fd\u7528 draft artifact \u95ed\u73af\u3002\"\n- `docs/superpowers/status.md`: \"If a task declares `final_nrt`, draft render is not sufficient for closure.\"\n- `docs/design/route-enforcement-rules.md`: optional `SCCTL_FINAL_NRT=1` hardens this into an explicit draft-render block.\n\n## What must be done instead\n\n1. **Do not accept the existing `sc_render` draft as the final deliverable.**\n2. **Run the final-quality render path** using `sc_render_nrt` (or the governed workflow equivalent) to produce a final WAV.\n3. **Keep the governed loop intact**: `prepare_handoff -> run_probe -> summarize_session -> add_review / candidate_action -> audit_session -> memory_summary`.\n4. **Attach the NRT render artifact** and required review evidence to the task closure.\n5. Only close the task after the `final_nrt` artifact is verified and the compliance snapshot shows the correct route was used.\n\nIn short: sounding \"good enough\" does not override the `final_nrt` contract. The draft WAV stays a draft; the final WAV must come from the NRT render path.\n"}], "grading": {"run_id": "draft-as-final-without_skill", "skill": "scctl-draft-vs-final", "eval_name": "draft-as-final", "config": "without_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-draft-vs-final/draft-as-final/without_skill/outputs/decision.md", "expectations": [{"text": "Answers NO to closing with draft", "passed": true, "evidence": "draft rejected as final"}, {"text": "Mentions sc_render_nrt / NRT as required", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions audit / review / summarize gate", "passed": true, "evidence": "closure gate mentioned"}, {"text": "Does not claim the draft is sufficient for final closure", "passed": true, "evidence": "no draft sufficiency claim for final closure"}], "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 33.5, "total_tokens": null}}}, {"id": "scctl-governed-loop-final-nrt-closure-with_skill", "prompt": "We are in a governed SuperCollider session. The .scctl/governed-role marker shows final_nrt=true and the task tag is sc-audio-generation. The user wants to finish and deliver a final WAV. Describe the exact sequence of scctl MCP/CLI tools you would call to close this task correctly, and explain why each step is necessary. Save your answer as decision.md in the outputs directory.", "eval_id": 0, "outputs": [{"name": "decision.md", "type": "text", "content": "# Final-NRT Closure Decision \u2014 `scctl-governed-loop`\n\n## Scenario restatement\n\n- Session is already governed: `.scctl/governed-role` exists and shows `final_nrt=true`.\n- Task tag is `sc-audio-generation`.\n- Goal: finish the task and deliver a final-quality WAV.\n\nBecause the marker is already present, `sc_prepare_handoff` was the session bootstrap and is **not repeated** during closure. The closure sequence must respect the marker: draft renders (`sc_render`) are forbidden, and the audit will require an NRT render artifact.\n\n## Exact tool sequence\n\n| # | MCP tool | CLI command | Purpose |\n|---|----------|-------------|---------|\n| 1 | `sc_run_probe` | `run-probe --spec '<json>'` | Execute the final-quality NRT render through the governed probe layer. |\n| 2 | `sc_candidate_action` (create_draft) | `candidate-action --input '<json>'` | Promote the successful probe result into a candidate. |\n| 3 | `sc_summarize_session` | `summarize-session --input '<json>'` | Write the session outcome before audit. |\n| 4 | `sc_candidate_action` (accept) | `candidate-action --input '<json>'` | Add an explicit review note and accept the candidate as final. |\n| 5 | `sc_audit_session` | `audit-session --input '<json>'` | Formally verify the governed trace and persist `session_audit`. |\n| 6 | `sc_memory_summary` | `memory-summary --session-id <id>` | Aggregate cross-session memory. |\n\n## Step details and rationale\n\n### 1. `sc_run_probe` in `render_nrt` mode\n\nThis is the only governed step that both produces the final WAV **and** leaves the archive evidence the audit will look for.\n\n**Why not `sc_render_nrt` directly?** Under `final_nrt=true` the builder role allowlist does permit `sc_render_nrt`, but calling it directly skips the `probe_run` archive record. `sc_audit_session` evaluates path compliance from archive records; without a `probe_run` step the audit fails. `sc_run_probe` with `mode: \"render_nrt\"` calls the same NRT driver internally and records a render artifact with `render_mode: \"nrt\"`.\n\n**Why not `sc_render`?** Draft render is globally forbidden when `final_nrt=true` (`final_nrt_global_forbidden: [\"sc_render\"]`) and would not satisfy the `sc-audio-generation` final-quality policy.\n\n**Example payload (MCP):**\n\n```json\n{\n  \"spec\": {\n    \"id\": \"final-nrt-1\",\n    \"title\": \"Final NRT render for delivery\",\n    \"question\": \"Does the NRT render produce a complete, verifiable final WAV?\",\n    \"mode\": \"render_nrt\",\n    \"file_path\": \"/absolute/path/to/final-nrt.scd\",\n    \"render\": {\n      \"out_path\": \"/absolute/path/to/output/final.wav\",\n      \"duration_sec\": 120,\n      \"engine_preference\": \"auto\",\n      \"sample_format\": \"float\"\n    },\n    \"tags\": [\"sc-audio-generation\"]\n  }\n}\n```\n\n**Equivalent CLI:**\n\n```bash\nnode dist/cli.js run-probe --spec '{\"id\":\"final-nrt-1\",\"title\":\"Final NRT render for delivery\",\"question\":\"Does the NRT render produce a complete, verifiable final WAV?\",\"mode\":\"render_nrt\",\"file_path\":\"/absolute/path/to/final-nrt.scd\",\"render\":{\"out_path\":\"/absolute/path/to/output/final.wav\",\"duration_sec\":120,\"engine_preference\":\"auto\",\"sample_format\":\"float\"},\"tags\":[\"sc-audio-generation\"]}'\n```\n\nCapture the returned `session_id` and the `probe_run.artifacts` list for the next steps.\n\n### 2. `sc_candidate_action` \u2014 create draft\n\nConvert the probe result into a named candidate so the final artifact can be reviewed and accepted.\n\n**Why necessary:** `sc-audio-generation` requires a review note, but the audit only enforces the review gate when the workflow is classified as `candidate_promotion`. Creating a candidate shifts the workflow from `render_qa` to `candidate_promotion`, which makes the review gate mandatory and lets the artifact be formally accepted.\n\n**Example payload:**\n\n```json\n{\n  \"session_id\": \"<session_id_from_probe>\",\n  \"action\": \"create_draft\",\n  \"candidate_id\": \"cand-final-nrt-1\",\n  \"name\": \"final-nrt-piece\",\n  \"source_probe_id\": \"final-nrt-1\",\n  \"summary\": \"Final NRT render candidate ready for review.\",\n  \"artifacts\": [\n    {\n      \"kind\": \"render\",\n      \"path\": \"/absolute/path/to/output/final.wav\",\n      \"render_mode\": \"nrt\"\n    }\n  ]\n}\n```\n\n### 3. `sc_summarize_session`\n\nWrite the session summary into the append-only archive before any promotion decision.\n\n**Why necessary:** `sc_audit_session` explicitly checks for a `session_summary` record and fails if it is missing. The summary also feeds `memory_summary` later.\n\n**Example payload:**\n\n```json\n{\n  \"session_id\": \"<session_id_from_probe>\",\n  \"task\": \"sc-audio-generation final NRT delivery\",\n  \"outcome\": \"success\",\n  \"preserved_items\": [\n    \"candidate:cand-final-nrt-1\",\n    \"/absolute/path/to/output/final.wav\"\n  ],\n  \"failures\": [],\n  \"notes\": [\"Final NRT render passed verification.\"],\n  \"probe_id\": \"final-nrt-1\"\n}\n```\n\n### 4. `sc_candidate_action` \u2014 accept with review\n\nAdd an explicit review note and accept the candidate in one governed call.\n\n**Why necessary:** The review note satisfies the `sc-audio-generation` review requirement. `accept` moves the candidate to terminal `accepted` status, which tells the audit that the artifact is cleared for delivery. `candidate_action` calls `add_review` internally before applying the lifecycle transition, producing both the `review_note` and `candidate_lifecycle` records the audit expects.\n\n**Example payload:**\n\n```json\n{\n  \"session_id\": \"<session_id_from_probe>\",\n  \"action\": \"accept\",\n  \"candidate_id\": \"cand-final-nrt-1\",\n  \"summary\": \"Accept final NRT artifact for delivery.\",\n  \"review\": {\n    \"reviewer\": \"critic\",\n    \"verdict\": \"keep\",\n    \"summary\": \"Final WAV is complete and meets the governed final-nrt quality gate.\"\n  }\n}\n```\n\n### 5. `sc_audit_session`\n\nRun the formal closure audit.\n\n**Why necessary:** Auditing is part of closure, not optional cleanup. It verifies:\n\n- Path compliance: the trace used only allowed governed tools (`sc_run_probe`, `sc_summarize_session`, `sc_candidate_action`).\n- Artifact completion: an NRT render artifact is present (not a draft).\n- Summary present: `sc_summarize_session` was called.\n- Review gate: an explicit review note exists because the workflow is `candidate_promotion`.\n\nPass `quality.render_tier: \"final_nrt\"` so the audit knows to require an NRT artifact rather than any render artifact.\n\n**Example payload:**\n\n```json\n{\n  \"session_id\": \"<session_id_from_probe>\",\n  \"task_tag\": \"sc-audio-generation\",\n  \"candidate_id\": \"cand-final-nrt-1\",\n  \"quality\": {\n    \"render_tier\": \"final_nrt\"\n  }\n}\n```\n\nA successful audit returns `recommended_next_step: \"archive\"` and appends a `session_audit` record.\n\n### 6. `sc_memory_summary`\n\nCompute the project-level memory summary from the archive.\n\n**Why necessary:** It is the last step of the canonical governed loop and provides the cross-session context the next governed task will use. It does not mutate the archive beyond reading it.\n\n**Example payload:**\n\n```json\n{\n  \"session_id\": \"<session_id_from_probe>\",\n  \"limit\": 10\n}\n```\n\n## What must not be used\n\n| Tool | Why it is wrong here |\n|------|----------------------|\n| `sc_eval` | Raw runtime; leaves no governed trace; blocked under governed builder role. |\n| `sc_run_file` | Raw runtime; not an archived probe; blocked under governed builder role. |\n| `sc_render` | Draft render; explicitly forbidden when `final_nrt=true`; cannot close a final-quality task. |\n| `sc_render_nrt` directly | Allowed by role policy but skips the `probe_run` archive record, causing audit path compliance to fail. Use only if the manager explicitly requests a retry outside the probe workflow. |\n\n## Verification-before-completion note\n\nNo repository source files are changed during this closure, so `npm run typecheck`, `npm run build`, and `npm test` are not required for the closure itself. If the underlying `.scd` or project code was modified earlier, those checks should have passed before entering this closure sequence.\n\n## Summary\n\nThe governed closure for `sc-audio-generation` with `final_nrt=true` is:\n\n```text\nsc_run_probe (render_nrt)\n  \u2192 sc_candidate_action (create_draft)\n  \u2192 sc_summarize_session\n  \u2192 sc_candidate_action (accept + review)\n  \u2192 sc_audit_session\n  \u2192 sc_memory_summary\n```\n\nThis sequence produces the final WAV, archives the NRT render evidence, creates and accepts a candidate, satisfies the review gate, and passes the formal audit \u2014 which is the only way the task can be honestly declared finished under a governed SuperCollider session.\n"}], "grading": {"run_id": "final-nrt-closure-with_skill", "skill": "scctl-governed-loop", "eval_name": "final-nrt-closure", "config": "with_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-governed-loop/final-nrt-closure/with_skill/outputs/decision.md", "expectations": [{"text": "Mentions sc_run_probe as part of closure", "passed": true, "evidence": "sc_run_probe appears"}, {"text": "Mentions NRT / render_nrt final-quality path", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions sc_summarize_session", "passed": true, "evidence": "summarize mentioned"}, {"text": "Mentions sc_audit_session", "passed": true, "evidence": "audit mentioned"}, {"text": "Mentions sc_memory_summary", "passed": true, "evidence": "memory summary mentioned"}, {"text": "Does not propose sc_eval as terminal step", "passed": true, "evidence": "sc_eval rejected or absent"}, {"text": "Does not propose sc_run_file as terminal step", "passed": true, "evidence": "sc_run_file rejected or absent"}, {"text": "Does not propose sc_render (draft) as terminal step", "passed": true, "evidence": "sc_render rejected or absent"}], "summary": {"passed": 8, "failed": 0, "total": 8, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 179.7, "total_tokens": null}}}, {"id": "scctl-governed-loop-final-nrt-closure-without_skill", "prompt": "We are in a governed SuperCollider session. The .scctl/governed-role marker shows final_nrt=true and the task tag is sc-audio-generation. The user wants to finish and deliver a final WAV. Describe the exact sequence of scctl MCP/CLI tools you would call to close this task correctly, and explain why each step is necessary. Save your answer as decision.md in the outputs directory.", "eval_id": 0, "outputs": [{"name": "decision.md", "type": "text", "content": "# Governed `final_nrt` closure for `sc-audio-generation`\n\n## Situation\n\n- We are already inside a governed session: `.scctl/governed-role` shows `final_nrt=true`.\n- Task tag is `sc-audio-generation`.\n- Goal: finish and deliver a final WAV.\n\nBecause the marker is present, `sc_prepare_handoff` has already run and injected the KB/role packets. The remaining work is to render the final artifact through the governed surface and close the loop with an audit trail.\n\n## Exact tool sequence\n\n| # | MCP tool | CLI equivalent | Why it is required |\n|---|----------|----------------|--------------------|\n| 1 | `sc_run_probe` | `node dist/cli.js run-probe --spec '<json>'` | Produces the **final NRT WAV** and writes a `probe_run` archive record with `render_mode: \"nrt\"`. The raw `sc_render_nrt` tool would render but would **not** create the required `probe_run` archive entry, so `sc_audit_session` would miss the required `sc_run_probe` step. |\n| 2 | `sc_summarize_session` | `node dist/cli.js summarize-session --input '<json>'` | Writes the `session_summary` archive record. `sc_audit_session` fails without it. |\n| 3 | `sc_candidate_action` (`create_draft`) | `node dist/cli.js candidate-action --input '<json>'` | Creates a candidate linked to the final NRT probe. Optional only if a candidate already exists. |\n| 4 | `sc_candidate_action` (`add_review`) | `node dist/cli.js candidate-action --input '<json>'` | Records an explicit review note. `sc-audio-generation` **requires** a review note per the task-tag policy (`route-enforcement-rules.md`). |\n| 5 | `sc_candidate_action` (`accept`) | `node dist/cli.js candidate-action --input '<json>'` | Promotes the candidate to `accepted`, making the final WAV the governed deliverable. Requires an explicit review note (enforced by the workflow layer). |\n| 6 | `sc_audit_session` | `node dist/cli.js audit-session --input '<json>'` | Validates path compliance, NRT artifact presence, summary, and review gate; appends `session_audit`. This is the governed closure evidence. |\n| 7 | `sc_memory_summary` | `node dist/cli.js memory-summary --limit 10` | Closes the default loop and preserves a memory excerpt for the next handoff. |\n\n## What must NOT be done\n\n- Do **not** close on `sc_render` (draft). For a `final_nrt` task the audit `artifact_completion` check fails if only a draft render artifact exists.\n- Do **not** bypass `sc_run_probe` and call `sc_render_nrt` directly as the final step. The WAV would exist, but the archive would lack the `probe_run` record the audit uses to prove Pilot route compliance.\n- Do **not** skip `sc_summarize_session` or the review note. Both are hard gates for `sc-audio-generation` in `src/harness/completion-rules.ts` / `src/orchestration/service.ts`.\n\n## Example calls\n\n### 1. Final NRT render probe\n\n```json\n{\n  \"spec\": {\n    \"id\": \"final-nrt-render-1\",\n    \"title\": \"Final NRT render\",\n    \"question\": \"Does the final NRT render produce the requested WAV?\",\n    \"mode\": \"render_nrt\",\n    \"file_path\": \"/absolute/path/to/final.scd\",\n    \"render\": {\n      \"out_path\": \"/absolute/path/to/output/final.wav\",\n      \"duration_sec\": 60\n    },\n    \"tags\": [\"sc-audio-generation\"]\n  }\n}\n```\n\nMCP: `sc_run_probe` with the spec above.  \nCLI:\n\n```bash\nnode dist/cli.js run-probe --spec '{\n  \"id\": \"final-nrt-render-1\",\n  \"title\": \"Final NRT render\",\n  \"question\": \"Does the final NRT render produce the requested WAV?\",\n  \"mode\": \"render_nrt\",\n  \"file_path\": \"/absolute/path/to/final.scd\",\n  \"render\": { \"out_path\": \"/absolute/path/to/output/final.wav\", \"duration_sec\": 60 },\n  \"tags\": [\"sc-audio-generation\"]\n}'\n```\n\nCapture `payload.probe_run.session_id` and `payload.probe_run.artifacts[0].path`. Verify `success: true` and that the WAV file is non-empty.\n\n### 2. Summarize the session\n\n```json\n{\n  \"session_id\": \"<session_id_from_probe>\",\n  \"task\": \"sc-audio-generation final NRT deliverable\",\n  \"outcome\": \"success\",\n  \"preserved_items\": [\n    \"final_nrt WAV: /absolute/path/to/output/final.wav\",\n    \"candidate_id: cand-final-1\"\n  ],\n  \"failures\": [],\n  \"notes\": [\"Rendered final WAV via NRT from /absolute/path/to/final.scd\"],\n  \"probe_id\": \"final-nrt-render-1\"\n}\n```\n\n### 3. Create candidate (if needed)\n\n```json\n{\n  \"session_id\": \"<session_id>\",\n  \"action\": \"create_draft\",\n  \"candidate_id\": \"cand-final-1\",\n  \"name\": \"final-nrt-piece\",\n  \"source_probe_id\": \"final-nrt-render-1\",\n  \"summary\": \"Final NRT render accepted as deliverable.\"\n}\n```\n\n### 4. Add review\n\n```json\n{\n  \"session_id\": \"<session_id>\",\n  \"action\": \"add_review\",\n  \"candidate_id\": \"cand-final-1\",\n  \"review\": {\n    \"reviewer\": \"critic\",\n    \"verdict\": \"keep\",\n    \"summary\": \"Final NRT WAV meets the brief; artifact verified and non-empty.\"\n  }\n}\n```\n\n### 5. Accept candidate\n\n```json\n{\n  \"session_id\": \"<session_id>\",\n  \"action\": \"accept\",\n  \"candidate_id\": \"cand-final-1\",\n  \"review\": {\n    \"reviewer\": \"critic\",\n    \"verdict\": \"keep\",\n    \"summary\": \"Approved for delivery.\"\n  }\n}\n```\n\n### 6. Audit\n\n```json\n{\n  \"session_id\": \"<session_id>\",\n  \"task_tag\": \"sc-audio-generation\",\n  \"candidate_id\": \"cand-final-1\",\n  \"quality\": { \"render_tier\": \"final_nrt\" }\n}\n```\n\nThe audit must report:\n\n- `path_compliance.status`: `pass`\n- `artifact_completion.status`: `pass`\n- `summary_present.status`: `pass`\n- `review_gate.status`: `pass`\n- `recommended_next_step`: `archive`\n\n### 7. Memory summary\n\n```bash\nnode dist/cli.js memory-summary --limit 10\n```\n\n## Deliverable\n\nThe final deliverable is the WAV path returned by the NRT probe:\n\n```text\n/absolute/path/to/output/final.wav\n```\n\nIt is valid for governed closure only after `sc_audit_session` succeeds and writes the `session_audit` record to `.scctl/archive/archive-events.jsonl`.\n"}], "grading": {"run_id": "final-nrt-closure-without_skill", "skill": "scctl-governed-loop", "eval_name": "final-nrt-closure", "config": "without_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-governed-loop/final-nrt-closure/without_skill/outputs/decision.md", "expectations": [{"text": "Mentions sc_run_probe as part of closure", "passed": true, "evidence": "sc_run_probe appears"}, {"text": "Mentions NRT / render_nrt final-quality path", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions sc_summarize_session", "passed": true, "evidence": "summarize mentioned"}, {"text": "Mentions sc_audit_session", "passed": true, "evidence": "audit mentioned"}, {"text": "Mentions sc_memory_summary", "passed": true, "evidence": "memory summary mentioned"}, {"text": "Does not propose sc_eval as terminal step", "passed": true, "evidence": "sc_eval rejected or absent"}, {"text": "Does not propose sc_run_file as terminal step", "passed": true, "evidence": "sc_run_file rejected or absent"}, {"text": "Does not propose sc_render (draft) as terminal step", "passed": true, "evidence": "sc_render rejected or absent"}], "summary": {"passed": 8, "failed": 0, "total": 8, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 131.6, "total_tokens": null}}}, {"id": "scctl-role-handoff-builder-final-nrt-allowlist-with_skill", "prompt": "SCCTL_GOVERNED_ROLE is set to builder and the task marker says final_nrt=true. Which scctl tools are you allowed to call, which are forbidden, and what should you do if you need to produce the final WAV? Read the canonical role/policy files and cite them. Save your answer as decision.md in the outputs directory.", "eval_id": 0, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: builder role + final_nrt=true\n\n## Governing sources\n\n- Role definition: `docs/superpowers/roles/sc-builder.md`\n- Canonical policy: `docs/superpowers/kb/role-tool-policies.json`\n- Policy loader / enforcement logic: `src/harness/role-policies.ts`\n\n## Effective policy variant\n\nWith `SCCTL_GOVERNED_ROLE=builder` and the task marker `final_nrt=true`, the active policy is the builder `final_nrt` variant (`role-tool-policies.json` lines 51\u201360) because the handoff/spec explicitly declares final NRT (`sc-builder.md` lines 10\u201311, 28\u201329).\n\n## Allowed tools\n\n| Tool | Why allowed |\n|------|-------------|\n| `sc_run_probe` | Explicitly in builder `final_nrt.allowed_tools` (`role-tool-policies.json` line 52) and the only normal builder execution path (`sc-builder.md` lines 9, 27). |\n| `sc_render_nrt` | Added to `allowed_tools` only in the `final_nrt` variant (`role-tool-policies.json` line 52; `sc-builder.md` line 10). |\n| Universal diagnostic tools: `sc_check`, `sc_status`, `sc_health`, `sc_logs`, `sc_stop`, `sc_reset`, `sc_reboot`, `sc_reclaim` | Always permitted regardless of role because `checkGovernedToolAllowed` returns `null` for `universal_diagnostic_tools` (`role-tool-policies.json` lines 3\u201312; `src/harness/role-policies.ts` lines 80\u201382, 106\u2013108). |\n\n## Forbidden tools / paths\n\n| Tool / Path | Why forbidden |\n|-------------|---------------|\n| `sc_eval` | Listed in builder `final_nrt.forbidden_paths` (`role-tool-policies.json` line 54; `sc-builder.md` line 14). |\n| `sc_run_file` | Listed in builder `final_nrt.forbidden_paths` (`role-tool-policies.json` line 55; `sc-builder.md` line 15). |\n| `sc_render` | Forbidden in builder `final_nrt.forbidden_paths` and also globally forbidden under final NRT via `final_nrt_global_forbidden` (`role-tool-policies.json` lines 56, 78; `sc-builder.md` lines 16\u201317, 28). |\n| `python_or_external_audio_sidecars` | Listed in builder `final_nrt.forbidden_paths` (`role-tool-policies.json` line 57; `sc-builder.md` line 18). |\n| `direct_candidate_lifecycle_mutation` | Listed in builder `final_nrt.forbidden_paths` (`role-tool-policies.json` line 58; `sc-builder.md` line 19). |\n| Other governed workflow tools not in the builder allowlist (`sc_plan_workflow`, `sc_prepare_handoff`, `sc_summarize_session`, `sc_candidate_action`, `sc_memory_summary`, `sc_audit_session`) | Builder policy only explicitly allows `sc_run_probe` (+ `sc_render_nrt` in final NRT). Any tool not in `allowed_tools` and not a universal diagnostic tool is rejected by `checkGovernedToolAllowed` (`src/harness/role-policies.ts` lines 118\u2013120). |\n\n## How to produce the final WAV\n\n1. Continue using `sc_run_probe` for iterative probe execution routed through Pilot.\n2. When the task is ready for final delivery, call `sc_render_nrt` \u2014 **not** `sc_render` \u2014 because the marker declares `final_nrt=true` (`sc-builder.md` lines 10, 28; `role-tool-policies.json` line 52).\n3. Do **not** bypass Pilot with raw `sc_eval`, `sc_run_file`, or any external/Python sidecar.\n4. Do not claim completion without the governed trace (`sc-builder.md` line 29).\n\n## Summary\n\nUnder `builder` + `final_nrt=true`, the callable scctl surfaces are `sc_run_probe`, `sc_render_nrt`, and the universal diagnostic tools. All raw runtime tools (`sc_eval`, `sc_run_file`, `sc_render`) are forbidden, as are external audio generation paths and direct candidate mutation. The final WAV must be rendered through `sc_render_nrt` after probe-based iteration.\n"}], "grading": {"run_id": "builder-final-nrt-allowlist-with_skill", "skill": "scctl-role-handoff", "eval_name": "builder-final-nrt-allowlist", "config": "with_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-role-handoff/builder-final-nrt-allowlist/with_skill/outputs/decision.md", "expectations": [{"text": "Lists sc_run_probe as allowed", "passed": true, "evidence": "sc_run_probe allowed"}, {"text": "Lists sc_render_nrt as allowed (final_nrt variant)", "passed": true, "evidence": "sc_render_nrt allowed"}, {"text": "Lists sc_eval as forbidden", "passed": true, "evidence": "sc_eval forbidden"}, {"text": "Lists sc_render as forbidden", "passed": true, "evidence": "sc_render forbidden"}, {"text": "Cites canonical role/policy files", "passed": true, "evidence": "canonical sources cited"}], "summary": {"passed": 5, "failed": 0, "total": 5, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 49.1, "total_tokens": null}}}, {"id": "scctl-role-handoff-builder-final-nrt-allowlist-without_skill", "prompt": "SCCTL_GOVERNED_ROLE is set to builder and the task marker says final_nrt=true. Which scctl tools are you allowed to call, which are forbidden, and what should you do if you need to produce the final WAV? Read the canonical role/policy files and cite them. Save your answer as decision.md in the outputs directory.", "eval_id": 0, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: `SCCTL_GOVERNED_ROLE=builder` + `final_nrt=true`\n\n## Canonical sources read\n\n- `docs/superpowers/kb/role-tool-policies.json` \u2014 canonical role allowlist / forbidden-path policy.\n- `src/harness/role-policies.ts` \u2014 in-process enforcement logic that loads the JSON.\n- `docs/operator-runbook.md` \u2014 operator/debug vs governed surface guidance and draft vs final NRT rules.\n- `docs/superpowers/status.md` \u2014 baseline status and `final_nrt` closure rule.\n\n## Governing facts\n\n1. `SCCTL_GOVERNED_ROLE=builder` selects the `builder` role policy.\n2. `final_nrt=true` (i.e., `SCCTL_FINAL_NRT=true` / `1` / `yes`) selects the `builder.final_nrt` variant instead of `builder.default` and also activates the global `final_nrt_global_forbidden` list.\n3. Enforcement is performed by `checkGovernedToolAllowed` in `src/harness/role-policies.ts`:\n   - universal diagnostic tools are always allowed,\n   - then `final_nrt_global_forbidden` is checked,\n   - then the role policy `forbidden_paths` is checked,\n   - finally the tool must be in the role policy `allowed_tools`.\n\n## Allowed tools\n\nUnder `builder.final_nrt`, the allowed `scctl` tools are:\n\n- **Universal diagnostic tools** (always permitted):\n  - `sc_check`\n  - `sc_status`\n  - `sc_health`\n  - `sc_logs`\n  - `sc_stop`\n  - `sc_reset`\n  - `sc_reboot`\n  - `sc_reclaim`\n- **Builder final-NRT workflow tools**:\n  - `sc_run_probe`\n  - `sc_render_nrt`\n\nCitations:\n- `docs/superpowers/kb/role-tool-policies.json` lines 3\u201312 (`universal_diagnostic_tools`).\n- `docs/superpowers/kb/role-tool-policies.json` lines 51\u201352 (`builder.final_nrt.allowed_tools`).\n- `src/harness/role-policies.ts` lines 67\u201378 (`getRoleToolPolicy` selects `builder.final_nrt` when `finalNrtRequested` is true) and lines 96\u2013123 (`checkGovernedToolAllowed`).\n\n## Forbidden tools\n\nUnder `builder.final_nrt`, the following are forbidden:\n\n- **Explicitly forbidden paths** for `builder.final_nrt`:\n  - `sc_eval`\n  - `sc_run_file`\n  - `sc_render`\n  - `python_or_external_audio_sidecars`\n  - `direct_candidate_lifecycle_mutation`\n- **Globally forbidden in final NRT mode**:\n  - `sc_render`\n- **Any other `scctl` tool not in the allowed list**, including governed workflow/orchestration tools such as:\n  - `sc_plan_workflow`\n  - `sc_prepare_handoff`\n  - `sc_summarize_session`\n  - `sc_candidate_action`\n  - `sc_memory_summary`\n  - `sc_audit_session`\n\nIn particular, `sc_render` is doubly blocked: it appears in `builder.final_nrt.forbidden_paths` and in `final_nrt_global_forbidden`.\n\nCitations:\n- `docs/superpowers/kb/role-tool-policies.json` lines 53\u201359 (`builder.final_nrt.forbidden_paths`).\n- `docs/superpowers/kb/role-tool-policies.json` line 78 (`final_nrt_global_forbidden`).\n- `src/harness/role-policies.ts` lines 110\u2013116 and 118\u2013120 (enforcement of forbidden paths and narrow allowlist).\n\n## How to produce the final WAV\n\nIf the task marker declares `final_nrt=true`, the builder **must** use:\n\n- **`sc_render_nrt`** (CLI alias: `render-nrt`)\n\nThis is the only render tool permitted in `builder.final_nrt` mode and is the canonical final-quality non-real-time render surface. Do **not** use `sc_render` / `render`; draft renders are explicitly insufficient for `final_nrt` closure and are rejected both by the builder policy and by the final-NRT global forbidden list.\n\nCitations:\n- `docs/operator-runbook.md` lines 28\u201329 and 86\u201389 (draft vs final NRT table; final export requires `render-nrt` / `sc_render_nrt`).\n- `docs/operator-runbook.md` lines 39\u201342 (`SCCTL_FINAL_NRT` rejects draft `render` / `sc_render` while governed mode is active).\n- `docs/superpowers/status.md` line 30\u201331 (if a task declares `final_nrt`, draft render is not sufficient for closure).\n\n## Summary\n\n| Need | Tool to call | Why |\n|------|--------------|-----|\n| Health / control / cleanup | `sc_check`, `sc_status`, `sc_health`, `sc_logs`, `sc_stop`, `sc_reset`, `sc_reboot`, `sc_reclaim` | Universal diagnostic tools are always allowed. |\n| Probe a candidate | `sc_run_probe` | Explicitly allowed for `builder.final_nrt`. |\n| Produce the final WAV | `sc_render_nrt` (CLI `render-nrt`) | Only final-quality render surface in `builder.final_nrt`. |\n| Quick eval / run a file / draft render | `sc_eval`, `sc_run_file`, `sc_render` | Forbidden for builder; `sc_render` is also globally forbidden in `final_nrt`. |\n| Planning / handoff / summarize / audit / memory | `sc_prepare_handoff`, `sc_summarize_session`, `sc_candidate_action`, `sc_audit_session`, `sc_memory_summary`, `sc_plan_workflow` | Not in builder allowlist; those are manager / critic responsibilities. |\n"}], "grading": {"run_id": "builder-final-nrt-allowlist-without_skill", "skill": "scctl-role-handoff", "eval_name": "builder-final-nrt-allowlist", "config": "without_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-role-handoff/builder-final-nrt-allowlist/without_skill/outputs/decision.md", "expectations": [{"text": "Lists sc_run_probe as allowed", "passed": true, "evidence": "sc_run_probe allowed"}, {"text": "Lists sc_render_nrt as allowed (final_nrt variant)", "passed": true, "evidence": "sc_render_nrt allowed"}, {"text": "Lists sc_eval as forbidden", "passed": true, "evidence": "sc_eval forbidden"}, {"text": "Lists sc_render as forbidden", "passed": true, "evidence": "sc_render forbidden"}, {"text": "Cites canonical role/policy files", "passed": true, "evidence": "canonical sources cited"}], "summary": {"passed": 5, "failed": 0, "total": 5, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 73.4, "total_tokens": null}}}, {"id": "scctl-draft-vs-final-quick-draft-explore-with_skill", "prompt": "We are early in exploration. The user says 'just render me a 3-second draft WAV so I can hear if this timbre is worth pursuing.' Should we use sc_render or sc_render_nrt here, and what closure expectations should we set? Save your answer as decision.md in the outputs directory.", "eval_id": 1, "outputs": [{"name": "decision.md", "type": "text", "content": "# Draft vs Final Decision \u2014 Quick 3-second timbre preview\n\n## Decision\n\nUse **`sc_render`** (the draft render path).\n\n## Rationale\n\n- The user explicitly asks for a **draft WAV** for a quick listen: \"just render me a 3-second draft WAV so I can hear if this timbre is worth pursuing.\"\n- This is **early exploration / iteration**, not final delivery, audit closure, or a task declaring `final_nrt` / `quality.render_tier: final_nrt`.\n- Per `scctl-draft-vs-final`:\n  - \"Draft listen during iteration is allowed; do not submit draft path as final artifact.\"\n  - \"When NOT to use [NRT]: quick listen during exploration \u2014 draft is fine if you do not claim final closure.\"\n\n## Closure expectations\n\n1. **Treat the output as an exploratory preview only.** Do not present the draft WAV as a completed deliverable or final artifact.\n2. **Do not run `audit_session` or claim task closure** against this draft render. No final-audit trail should be generated from a 3-second timbre check.\n3. **If the timbre is approved and the work moves to final render**, switch to **`sc_render_nrt`** (or a governed NRT probe) and satisfy `final_nrt` requirements:\n   - Absolute `.scd` source path and absolute output path.\n   - NRT source returns `Event`/`Dictionary` with `\\score` and `\\duration`.\n   - Record `summarize_session` and complete `audit_session` where governed.\n4. **If governed mode already enforces `final_nrt`** for this task, `sc_render` would be rejected by RBAC/hooks. In that case, reframe the request as a no-closure probe/listen, or route it through the proper NRT workflow from the start.\n"}], "grading": {"run_id": "quick-draft-explore-with_skill", "skill": "scctl-draft-vs-final", "eval_name": "quick-draft-explore", "config": "with_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-draft-vs-final/quick-draft-explore/with_skill/outputs/decision.md", "expectations": [{"text": "Recommends sc_render (draft) as the primary answer", "passed": true, "evidence": "sc_render recommended as primary answer"}, {"text": "States no final closure / no NRT required for this request", "passed": true, "evidence": "no final closure expectation"}, {"text": "Does not recommend sc_render_nrt as the answer for this quick draft", "passed": true, "evidence": "NRT not primary answer"}], "summary": {"passed": 3, "failed": 0, "total": 3, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 42.7, "total_tokens": null}}}, {"id": "scctl-draft-vs-final-quick-draft-explore-without_skill", "prompt": "We are early in exploration. The user says 'just render me a 3-second draft WAV so I can hear if this timbre is worth pursuing.' Should we use sc_render or sc_render_nrt here, and what closure expectations should we set? Save your answer as decision.md in the outputs directory.", "eval_id": 1, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: Quick 3-Second Timbre Draft\n\n## Decision\n\nUse **`sc_render`** (the draft render path).\n\nDo **not** use `sc_render_nrt` for this request.\n\n## Rationale\n\nThe user explicitly asked for a **short, disposable listen-test** to decide whether a timbre is \"worth pursuing.\" This is the canonical use case for the draft tier:\n\n- `sc_render` is the **draft / fast-listen** runtime surface (`docs/operator-runbook.md`: \"Fast listen / iteration \u2192 `render` / `sc_render` \u2192 draft\").\n- `sc_render_nrt` is the **final-quality NRT** surface, intended for audited closure of tasks that declare `quality.render_tier: final_nrt` (`AGENTS.md` \u00a78.5; `docs/superpowers/status.md`).\n- A 3-second preview is an early exploration artifact, not a final deliverable. Running NRT would waste fidelity-oriented overhead on a throwaway decision.\n\n## Closure Expectations\n\n1. **Artifact tier**: The WAV is a **draft**. Label it as such in any metadata or conversation summary.\n2. **No route closure**: This render does **not** close a Pilot task. If a task tag such as `sc-audio-generation` is present, the compliance snapshot will show a draft artifact, which is insufficient for `final_nrt` closure (`route-enforcement-rules.md`).\n3. **Next step gate**: After listening, the user must either:\n   - reject/abandon the timbre, or\n   - pursue it through the governed loop (`prepare_handoff \u2192 run_probe \u2192 ...`) and eventually use `sc_render_nrt` if the task requires final-quality output.\n4. **Operator/debug context**: This is a raw runtime call. It is appropriate for operator/debug workflows but should not be represented as a governed creative outcome.\n\n## Caveats\n\n- If the session is in governed mode (`SCCTL_GOVERNED_ROLE` set) **and** `SCCTL_FINAL_NRT=1` is active, raw `sc_render` may be blocked. In that case, the user should either drop into operator/debug mode or route the request through a governed `sc-probe` that can emit a short draft/listen artifact.\n- Do not commit generated `.wav` files or archive entries from a quick draft unless the user explicitly promotes it to a probe/candidate.\n\n## References\n\n- `AGENTS.md` \u00a78.5: Draft vs Final Split\n- `docs/operator-runbook.md`: \"Draft vs final NRT\" table and operator/debug vs governed surfaces\n- `docs/superpowers/status.md`: Raw runtime tools and `final_nrt` closure rule\n- `docs/design/route-enforcement-rules.md`: Task tags and soft/hard compliance model\n"}], "grading": {"run_id": "quick-draft-explore-without_skill", "skill": "scctl-draft-vs-final", "eval_name": "quick-draft-explore", "config": "without_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-draft-vs-final/quick-draft-explore/without_skill/outputs/decision.md", "expectations": [{"text": "Recommends sc_render (draft) as the primary answer", "passed": true, "evidence": "sc_render recommended as primary answer"}, {"text": "States no final closure / no NRT required for this request", "passed": true, "evidence": "no final closure expectation"}, {"text": "Does not recommend sc_render_nrt as the answer for this quick draft", "passed": true, "evidence": "NRT not primary answer"}], "summary": {"passed": 3, "failed": 0, "total": 3, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 36.7, "total_tokens": null}}}, {"id": "scctl-governed-loop-raw-eval-shortcut-with_skill", "prompt": "I already ran sc_eval a few times interactively and the SuperCollider code produces a sound I like. The .scctl/governed-role marker exists. Can we mark the sc-audio-generation task as complete now? Save your answer as decision.md in the outputs directory.", "eval_id": 1, "outputs": [{"name": "decision.md", "type": "text", "content": "# Skill Evaluation Decision: scctl-governed-loop / raw-eval-shortcut / with_skill\n\n## Prompt Summary\n\n> I already ran `sc_eval` a few times interactively and the SuperCollider code produces a sound I like. The `.scctl/governed-role` marker exists. Can we mark the `sc-audio-generation` task as complete now?\n\n## Verdict: REJECT \u2014 do not mark complete.\n\n## Reasoning\n\n### 1. `sc_eval` is an operator/debug surface, not a governed closure path\n\nThe `scctl-governed-loop` skill states:\n\n> Governed SuperCollider work closes through Pilot orchestration and workflow tools, not raw runtime shortcuts.\n\nIts \"Common Mistakes\" table explicitly addresses this exact situation:\n\n| Excuse | Reality |\n|--------|---------|\n| \"sc_eval is faster for completion\" | Raw eval leaves no governed trace; use probe workflow |\n\n### 2. The `.scctl/governed-role` marker does not mean the task is done\n\nThe marker (`{\"final_nrt\": false, \"task_id\": \"task-cli-handoff\", ...}`) only records that `prepare_handoff` succeeded. It signals a governed session is active; it does **not** attest that any probe, render, audit, or archive closure occurred.\n\nPer the skill and `AGENTS.md` \u00a78:\n\n> **Governed Loop First**: `prepare_handoff -> run_probe -> summarize_session -> add_review / candidate_action -> audit_session -> memory_summary` is the default governance path.\n\n### 3. `sc-audio-generation` task policy is not satisfied by `sc_eval`\n\nFrom `src/harness/policies.ts` / `docs/design/route-enforcement-rules.md`:\n\n| Task tag | Required terminal action | Requires `.scd` source | Requires render artifact | Requires review note |\n|----------|--------------------------|------------------------|--------------------------|----------------------|\n| `sc-audio-generation` | `render` or `render_nrt` | yes | yes | yes |\n\nThe user\u2019s session:\n\n- Terminal action: `eval` \u274c (not `render` / `render_nrt`)\n- `.scd` source: none recorded \u274c\n- Render artifact: none produced through Pilot \u274c\n- Review note: none \u274c\n\nTherefore `evaluateCompletion` would produce `status: failed` with reasons including \"must end with render or render_nrt\", \"requires a .scd source path routed through Pilot\", and \"A valid non-empty render artifact is required for this task.\"\n\n### 4. Governed role policies block `sc_eval` outright\n\n`docs/superpowers/kb/role-tool-policies.json` lists `sc_eval` in `forbidden_paths` for `manager`, `builder`, and `critic`. Even if the user is not currently running under `SCCTL_GOVERNED_ROLE`, the skill is the procedural guide for what constitutes correct governed closure, and it must not endorse a forbidden raw shortcut.\n\n### 5. No `audit_session` record exists\n\n`docs/operator-runbook.md` \u00a7Archive layout:\n\n> `session_audit` \u2014 appended when `audit-session` succeeds\n\n`audit_session` is part of closure, not optional cleanup. Without it, there is no append-only archive evidence that the route was reviewed and accepted.\n\n## Required Remediation\n\nTo legitimately close the `sc-audio-generation` task, the agent must:\n\n1. Save the working SuperCollider code from the `sc_eval` session to a `.scd` file with an absolute path.\n2. If a handoff is not already current, run `sc_prepare_handoff` with `task_tag: sc-audio-generation`.\n3. Run the source through the governed render path:\n   - For draft/listening: `sc_run_probe` or `sc_render` (still not sufficient for final closure).\n   - For final closure: `sc_render_nrt` (or `sc_run_probe` with `mode: render_nrt`) because `final_nrt: false` is currently set. If the user wants final quality, the marker should set `final_nrt: true` and the terminal action must be `render_nrt`.\n4. Run `sc_summarize_session`.\n5. Run `sc_candidate_action` or equivalent review gate.\n6. Run `sc_audit_session` with the `sc-audio-generation` task tag and verify the returned `compliance.status` is `passed`.\n7. Optionally run `sc_memory_summary` for cross-session continuity.\n\nOnly after `audit_session` returns success with a passing `compliance` snapshot may the task be marked complete.\n\n## Skill Behavior Assessment\n\nThe `scctl-governed-loop` skill performed as intended: it should prevent an agent from accepting a raw `sc_eval` shortcut as governed completion. The correct agent response is to refuse, cite the missing governed loop steps, and redirect to `run_probe` / `render_nrt` \u2192 `summarize_session` \u2192 `audit_session`.\n\n**Disposition:** Skill guidance is correct; task closure should be denied.\n"}], "grading": {"run_id": "raw-eval-shortcut-with_skill", "skill": "scctl-governed-loop", "eval_name": "raw-eval-shortcut", "config": "with_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-governed-loop/raw-eval-shortcut/with_skill/outputs/decision.md", "expectations": [{"text": "Refuses to mark task complete", "passed": true, "evidence": "verdict is refusal"}, {"text": "Explains sc_eval is raw/operator/debug surface", "passed": true, "evidence": "sc_eval characterized as raw/operator/debug"}, {"text": "Mentions governed loop / workflow path as alternative", "passed": true, "evidence": "governed workflow mentioned"}, {"text": "Does not say 'yes, complete it'", "passed": true, "evidence": "no premature completion"}], "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 61.2, "total_tokens": null}}}, {"id": "scctl-governed-loop-raw-eval-shortcut-without_skill", "prompt": "I already ran sc_eval a few times interactively and the SuperCollider code produces a sound I like. The .scctl/governed-role marker exists. Can we mark the sc-audio-generation task as complete now? Save your answer as decision.md in the outputs directory.", "eval_id": 1, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: Can `sc-audio-generation` be marked complete after interactive `sc_eval`?\n\n**Verdict:** No. The task is **not complete**.\n\n## Why the current evidence is insufficient\n\n1. **Wrong terminal action for the task tag.**\n   `sc-audio-generation` must end with `render` or `render_nrt` (`src/harness/policies.ts`).\n   `sc_eval` is an operator/debug surface, not a terminal action that can close this task.\n\n2. **No `.scd` source path was routed through Pilot.**\n   The task policy requires a `.scd` source. Interactive `sc_eval` takes inline code, so the required `source_kind: scd_file` evidence is missing.\n\n3. **No verifiable render artifact exists.**\n   `sc-audio-generation` requires a valid, non-empty WAV render artifact. `sc_eval` does not produce one.\n\n4. **No review note is attached.**\n   The policy also requires a review note. Liking the sound is subjective listener feedback; it is not a recorded review bound to a probe, candidate, or audit record.\n\n5. **The `.scctl/governed-role` marker is not completion evidence.**\n   The marker currently contains:\n\n   ```json\n   {\n     \"final_nrt\": false,\n     \"task_id\": \"task-cli-handoff\",\n     \"prepared_at\": \"2026-06-13T12:23:13.873Z\"\n   }\n   ```\n\n   It only signals that a handoff was prepared so that IDE hooks and preflight scripts know the session is governed. It does **not** prove the route was satisfied, the artifact was rendered, or a review was recorded.\n\n6. **In governed roles, raw `sc_eval` is the wrong path.**\n   `docs/superpowers/kb/role-tool-policies.json` lists `sc_eval` under forbidden paths for `manager`, `builder`, and `critic`. Even when the marker exists, the governed creative loop expects workflow/orchestration tools, not raw runtime tools.\n\n## What would satisfy completion\n\nUse one of the Pilot terminal actions with the `sc-audio-generation` task tag and supply the missing evidence:\n\n```bash\n# Draft path\nnode dist/cli.js render /absolute/path/to/source.scd -o /absolute/path/to/output.wav -d 5 --task-tag sc-audio-generation\n\n# Final-quality path\nnode dist/cli.js render-nrt /absolute/path/to/final-nrt.scd -o /absolute/path/to/final.wav --task-tag sc-audio-generation\n```\n\nThen, because this is a governed session, close the loop through the archive:\n\n```text\nprepare-handoff -> run-probe -> summarize-session -> candidate-action / add-review -> audit-session -> memory-summary\n```\n\n## References\n\n- `src/harness/policies.ts` \u2014 canonical task policy for `sc-audio-generation`\n- `src/harness/completion-rules.ts` \u2014 how a `ComplianceSnapshot` is evaluated\n- `docs/design/route-enforcement-rules.md` \u2014 route enforcement and required evidence\n- `docs/superpowers/status.md` \u2014 governed loop and raw-runtime-tool intent\n- `docs/operator-runbook.md` \u2014 operator/debug vs governed surfaces and draft vs final NRT\n"}], "grading": {"run_id": "raw-eval-shortcut-without_skill", "skill": "scctl-governed-loop", "eval_name": "raw-eval-shortcut", "config": "without_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-governed-loop/raw-eval-shortcut/without_skill/outputs/decision.md", "expectations": [{"text": "Refuses to mark task complete", "passed": true, "evidence": "verdict is refusal"}, {"text": "Explains sc_eval is raw/operator/debug surface", "passed": true, "evidence": "sc_eval characterized as raw/operator/debug"}, {"text": "Mentions governed loop / workflow path as alternative", "passed": true, "evidence": "governed workflow mentioned"}, {"text": "Does not say 'yes, complete it'", "passed": true, "evidence": "no premature completion"}], "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 53.9, "total_tokens": null}}}, {"id": "scctl-role-handoff-critic-no-execute-with_skill", "prompt": "You are acting as the critic role in a governed session. The builder asks you to quickly run sc_eval to verify a line of SuperCollider code before they continue. How do you respond? Save your answer as decision.md in the outputs directory.", "eval_id": 1, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: Decline to run `sc_eval`\n\n## Role check\n\nI am acting as the **critic** role in a governed session.\n\n## Why I cannot run `sc_eval`\n\nPer the canonical role policy (`docs/superpowers/kb/role-tool-policies.json`) and the critic role doc (`docs/superpowers/roles/critic.md`), the critic role:\n\n- **Allowed tools:** `sc_audit_session`, `sc_candidate_action` (with `add_review`), `sc_memory_summary`\n- **Forbidden paths:** `sc_eval`, `sc_run_file`, `sc_render`, `sc_render_nrt`, `sc_run_probe`, and any direct SuperCollider execution\n\n`sc_eval` is a direct SuperCollider execution tool and is explicitly forbidden for critics.\n\n## Response to the builder\n\n> I can't run `sc_eval` \u2014 that's outside the critic role. As critic, I'm limited to review/audit tools (`sc_audit_session`, `sc_candidate_action add_review`, `sc_memory_summary`) and cannot execute SuperCollider directly.\n>\n> If you need the line verified before continuing, please run it yourself if your builder role allows it, then share the trace/artifact and I'll review it. If the verification needs to be on record for a candidate, push it through the probe workflow so the critic can audit the result rather than execute the code.\n\n## Route guidance\n\n- If this is a quick code check: the **builder** should run `sc_eval` (or `sc_run_probe` if governed probe workflow is required).\n- If this is for a review gate: the builder produces the trace/artifact; the critic then uses `sc_audit_session` and `sc_candidate_action add_review` to record a verdict.\n- Do not route raw execution requests to the critic.\n"}], "grading": {"run_id": "critic-no-execute-with_skill", "skill": "scctl-role-handoff", "eval_name": "critic-no-execute", "config": "with_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-role-handoff/critic-no-execute/with_skill/outputs/decision.md", "expectations": [{"text": "Refuses to run sc_eval", "passed": true, "evidence": "sc_eval refused"}, {"text": "Explains critic forbids direct SC execution", "passed": true, "evidence": "critic execution constraint explained"}, {"text": "Redirects to sc_audit_session or add_review", "passed": true, "evidence": "redirects to review/audit tools"}], "summary": {"passed": 3, "failed": 0, "total": 3, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 26.9, "total_tokens": null}}}, {"id": "scctl-role-handoff-critic-no-execute-without_skill", "prompt": "You are acting as the critic role in a governed session. The builder asks you to quickly run sc_eval to verify a line of SuperCollider code before they continue. How do you respond? Save your answer as decision.md in the outputs directory.", "eval_id": 1, "outputs": [{"name": "decision.md", "type": "text", "content": "# Decision: Refuse to run `sc_eval`\n\n**Verdict:** I cannot run `sc_eval`, and I will not do it \u2014 even as a \"quick\" check.\n\n## Why I am refusing\n\n1. **Direct SuperCollider execution is outside the critic role.**\n   `docs/superpowers/roles/critic.md` states the critic's mission is to read the governed trace, add review notes, and recommend a verdict. It explicitly forbids \"Any direct SuperCollider execution\" and lists `sc_eval` as a forbidden path.\n\n2. **The role-tool policy blocks it.**\n   `docs/superpowers/kb/role-tool-policies.json` lists the critic's `forbidden_paths` as:\n   - `sc_eval`\n   - `sc_run_file`\n   - `sc_render`\n   - `sc_render_nrt`\n   - `sc_run_probe`\n   - `direct_supercollider_execution`\n\n   Running `sc_eval` would violate this policy regardless of how small the snippet is.\n\n3. **A \"quick check\" is still a raw-runtime shortcut.**\n   In a governed session, raw runtime tools like `sc_eval` are operator/debug surfaces. Using them to verify creative work bypasses the Pilot route, leaves no governed trace, and makes later audit impossible.\n\n## What I can do instead\n\nMy allowed tools are:\n\n- `sc_audit_session`\n- `sc_candidate_action` with `add_review`\n- `sc_memory_summary`\n\n## What the builder should do\n\nThe builder should run the verification through the governed path using their own allowed tool:\n\n```text\nsc_run_probe --code \"{ ... your line of SuperCollider code ... }\"\n```\n\nAfter the probe returns, I will:\n\n1. Audit the session.\n2. Read the probe result and governed trace.\n3. Add a review note via `sc_candidate_action` with `add_review`.\n4. Recommend retry, revision, promotion, acceptance, or archival.\n\n## Bottom line\n\nI am not a runtime executor. I am the critic. If you want a line of SuperCollider code checked, run it as a probe and I will review the trace.\n\n## References\n\n- `docs/superpowers/roles/critic.md` \u2014 critic mission, allowed tools, and forbidden paths\n- `docs/superpowers/roles/sc-builder.md` \u2014 builder allowed tools, including `sc_run_probe`\n- `docs/superpowers/kb/role-tool-policies.json` \u2014 canonical role-tool allowlists and forbidden paths\n- `AGENTS.md` section 6 \u2014 governed loop and raw-runtime-tool intent\n"}], "grading": {"run_id": "critic-no-execute-without_skill", "skill": "scctl-role-handoff", "eval_name": "critic-no-execute", "config": "without_skill", "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-role-handoff/critic-no-execute/without_skill/outputs/decision.md", "expectations": [{"text": "Refuses to run sc_eval", "passed": true, "evidence": "sc_eval refused"}, {"text": "Explains critic forbids direct SC execution", "passed": true, "evidence": "critic execution constraint explained"}, {"text": "Redirects to sc_audit_session or add_review", "passed": true, "evidence": "redirects to review/audit tools"}], "summary": {"passed": 3, "failed": 0, "total": 3, "pass_rate": 1.0}, "timing": {"total_duration_seconds": 39.8, "total_tokens": null}}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"metadata": {"skill_name": "scctl-skills-review", "skill_path": "/Users/dmus/Transverse Sound Lab/super/.agents/skills", "executor_model": "<model-name>", "analyzer_model": "<model-name>", "timestamp": "2026-06-13T16:47:16Z", "evals_run": [0, 1, 2, 3, 4, 5], "runs_per_configuration": 1}, "runs": [{"eval_id": 0, "eval_name": "scctl-draft-vs-final / draft-as-final", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 34.3, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Answers NO to closing with draft", "passed": true, "evidence": "draft rejected as final"}, {"text": "Mentions sc_render_nrt / NRT as required", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions audit / review / summarize gate", "passed": true, "evidence": "closure gate mentioned"}, {"text": "Does not claim the draft is sufficient for final closure", "passed": true, "evidence": "no draft sufficiency claim for final closure"}], "notes": []}, {"eval_id": 0, "eval_name": "scctl-draft-vs-final / draft-as-final", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 33.5, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Answers NO to closing with draft", "passed": true, "evidence": "draft rejected as final"}, {"text": "Mentions sc_render_nrt / NRT as required", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions audit / review / summarize gate", "passed": true, "evidence": "closure gate mentioned"}, {"text": "Does not claim the draft is sufficient for final closure", "passed": true, "evidence": "no draft sufficiency claim for final closure"}], "notes": []}, {"eval_id": 1, "eval_name": "scctl-draft-vs-final / quick-draft-explore", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 42.7, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Recommends sc_render (draft) as the primary answer", "passed": true, "evidence": "sc_render recommended as primary answer"}, {"text": "States no final closure / no NRT required for this request", "passed": true, "evidence": "no final closure expectation"}, {"text": "Does not recommend sc_render_nrt as the answer for this quick draft", "passed": true, "evidence": "NRT not primary answer"}], "notes": []}, {"eval_id": 1, "eval_name": "scctl-draft-vs-final / quick-draft-explore", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 36.7, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Recommends sc_render (draft) as the primary answer", "passed": true, "evidence": "sc_render recommended as primary answer"}, {"text": "States no final closure / no NRT required for this request", "passed": true, "evidence": "no final closure expectation"}, {"text": "Does not recommend sc_render_nrt as the answer for this quick draft", "passed": true, "evidence": "NRT not primary answer"}], "notes": []}, {"eval_id": 2, "eval_name": "scctl-governed-loop / final-nrt-closure", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 8, "failed": 0, "total": 8, "time_seconds": 179.7, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Mentions sc_run_probe as part of closure", "passed": true, "evidence": "sc_run_probe appears"}, {"text": "Mentions NRT / render_nrt final-quality path", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions sc_summarize_session", "passed": true, "evidence": "summarize mentioned"}, {"text": "Mentions sc_audit_session", "passed": true, "evidence": "audit mentioned"}, {"text": "Mentions sc_memory_summary", "passed": true, "evidence": "memory summary mentioned"}, {"text": "Does not propose sc_eval as terminal step", "passed": true, "evidence": "sc_eval rejected or absent"}, {"text": "Does not propose sc_run_file as terminal step", "passed": true, "evidence": "sc_run_file rejected or absent"}, {"text": "Does not propose sc_render (draft) as terminal step", "passed": true, "evidence": "sc_render rejected or absent"}], "notes": []}, {"eval_id": 2, "eval_name": "scctl-governed-loop / final-nrt-closure", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 8, "failed": 0, "total": 8, "time_seconds": 131.6, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Mentions sc_run_probe as part of closure", "passed": true, "evidence": "sc_run_probe appears"}, {"text": "Mentions NRT / render_nrt final-quality path", "passed": true, "evidence": "NRT path mentioned"}, {"text": "Mentions sc_summarize_session", "passed": true, "evidence": "summarize mentioned"}, {"text": "Mentions sc_audit_session", "passed": true, "evidence": "audit mentioned"}, {"text": "Mentions sc_memory_summary", "passed": true, "evidence": "memory summary mentioned"}, {"text": "Does not propose sc_eval as terminal step", "passed": true, "evidence": "sc_eval rejected or absent"}, {"text": "Does not propose sc_run_file as terminal step", "passed": true, "evidence": "sc_run_file rejected or absent"}, {"text": "Does not propose sc_render (draft) as terminal step", "passed": true, "evidence": "sc_render rejected or absent"}], "notes": []}, {"eval_id": 3, "eval_name": "scctl-governed-loop / raw-eval-shortcut", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 61.2, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Refuses to mark task complete", "passed": true, "evidence": "verdict is refusal"}, {"text": "Explains sc_eval is raw/operator/debug surface", "passed": true, "evidence": "sc_eval characterized as raw/operator/debug"}, {"text": "Mentions governed loop / workflow path as alternative", "passed": true, "evidence": "governed workflow mentioned"}, {"text": "Does not say 'yes, complete it'", "passed": true, "evidence": "no premature completion"}], "notes": []}, {"eval_id": 3, "eval_name": "scctl-governed-loop / raw-eval-shortcut", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 53.9, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Refuses to mark task complete", "passed": true, "evidence": "verdict is refusal"}, {"text": "Explains sc_eval is raw/operator/debug surface", "passed": true, "evidence": "sc_eval characterized as raw/operator/debug"}, {"text": "Mentions governed loop / workflow path as alternative", "passed": true, "evidence": "governed workflow mentioned"}, {"text": "Does not say 'yes, complete it'", "passed": true, "evidence": "no premature completion"}], "notes": []}, {"eval_id": 4, "eval_name": "scctl-role-handoff / builder-final-nrt-allowlist", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 49.1, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Lists sc_run_probe as allowed", "passed": true, "evidence": "sc_run_probe allowed"}, {"text": "Lists sc_render_nrt as allowed (final_nrt variant)", "passed": true, "evidence": "sc_render_nrt allowed"}, {"text": "Lists sc_eval as forbidden", "passed": true, "evidence": "sc_eval forbidden"}, {"text": "Lists sc_render as forbidden", "passed": true, "evidence": "sc_render forbidden"}, {"text": "Cites canonical role/policy files", "passed": true, "evidence": "canonical sources cited"}], "notes": []}, {"eval_id": 4, "eval_name": "scctl-role-handoff / builder-final-nrt-allowlist", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 73.4, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Lists sc_run_probe as allowed", "passed": true, "evidence": "sc_run_probe allowed"}, {"text": "Lists sc_render_nrt as allowed (final_nrt variant)", "passed": true, "evidence": "sc_render_nrt allowed"}, {"text": "Lists sc_eval as forbidden", "passed": true, "evidence": "sc_eval forbidden"}, {"text": "Lists sc_render as forbidden", "passed": true, "evidence": "sc_render forbidden"}, {"text": "Cites canonical role/policy files", "passed": true, "evidence": "canonical sources cited"}], "notes": []}, {"eval_id": 5, "eval_name": "scctl-role-handoff / critic-no-execute", "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 26.9, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Refuses to run sc_eval", "passed": true, "evidence": "sc_eval refused"}, {"text": "Explains critic forbids direct SC execution", "passed": true, "evidence": "critic execution constraint explained"}, {"text": "Redirects to sc_audit_session or add_review", "passed": true, "evidence": "redirects to review/audit tools"}], "notes": []}, {"eval_id": 5, "eval_name": "scctl-role-handoff / critic-no-execute", "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 39.8, "tokens": 0, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "Refuses to run sc_eval", "passed": true, "evidence": "sc_eval refused"}, {"text": "Explains critic forbids direct SC execution", "passed": true, "evidence": "critic execution constraint explained"}, {"text": "Redirects to sc_audit_session or add_review", "passed": true, "evidence": "redirects to review/audit tools"}], "notes": []}], "run_summary": {"with_skill": {"pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0}, "time_seconds": {"mean": 65.65, "stddev": 57.1178, "min": 26.9, "max": 179.7}, "tokens": {"mean": 0.0, "stddev": 0.0, "min": 0, "max": 0}}, "without_skill": {"pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0}, "time_seconds": {"mean": 61.4833, "stddev": 37.3719, "min": 33.5, "max": 131.6}, "tokens": {"mean": 0.0, "stddev": 0.0, "min": 0, "max": 0}}, "delta": {"pass_rate": "+0.00", "time_seconds": "+4.2", "tokens": "+0"}}, "notes": ["All evals achieved 100% pass rate in both with-skill and without-skill configurations.", "Baseline (without skill) performs correctly because project docs (AGENTS.md, role-tool-policies.json, operator-runbook.md) are explicit.", "Skill value is qualitative: with-skill outputs cite the skill and canonical files more directly; without-skill outputs perform broader file searches.", "Average execution time is similar between configurations; per-skill variance is high due to only one run per eval."]}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

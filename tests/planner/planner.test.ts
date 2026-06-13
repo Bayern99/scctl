@@ -73,9 +73,11 @@ describe('planner scaffolding', () => {
 
     const workflowPrompt = buildWorkflowPrompt(selection, spec);
     expect(workflowPrompt).toContain('Workflow: probe');
-    expect(workflowPrompt).toContain('Recommended tools: sc_check -> sc_eval -> sc_logs');
+    expect(workflowPrompt).toContain(
+      'Recommended governed route: sc_prepare_handoff -> sc_run_probe -> sc_summarize_session -> sc_audit_session -> sc_memory_summary',
+    );
 
     expect(buildBuilderPrompt(spec)).toContain('Builder role');
-    expect(buildEvaluatorPrompt(spec)).toContain('artifacts, logs, and eval signals only');
+    expect(buildEvaluatorPrompt(spec)).toContain('Critic role');
   });
 });

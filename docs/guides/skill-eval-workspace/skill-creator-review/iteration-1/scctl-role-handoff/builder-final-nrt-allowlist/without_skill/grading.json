@@ -1,0 +1,44 @@
+{
+  "run_id": "builder-final-nrt-allowlist-without_skill",
+  "skill": "scctl-role-handoff",
+  "eval_name": "builder-final-nrt-allowlist",
+  "config": "without_skill",
+  "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-role-handoff/builder-final-nrt-allowlist/without_skill/outputs/decision.md",
+  "expectations": [
+    {
+      "text": "Lists sc_run_probe as allowed",
+      "passed": true,
+      "evidence": "sc_run_probe allowed"
+    },
+    {
+      "text": "Lists sc_render_nrt as allowed (final_nrt variant)",
+      "passed": true,
+      "evidence": "sc_render_nrt allowed"
+    },
+    {
+      "text": "Lists sc_eval as forbidden",
+      "passed": true,
+      "evidence": "sc_eval forbidden"
+    },
+    {
+      "text": "Lists sc_render as forbidden",
+      "passed": true,
+      "evidence": "sc_render forbidden"
+    },
+    {
+      "text": "Cites canonical role/policy files",
+      "passed": true,
+      "evidence": "canonical sources cited"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 73.4,
+    "total_tokens": null
+  }
+}

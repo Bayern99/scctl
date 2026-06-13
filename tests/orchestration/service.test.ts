@@ -144,6 +144,20 @@ describe('OrchestrationService', () => {
     expect(probe.payload.workflow_plan.selection.workflow).toBe('probe');
     expect(renderQa.payload.workflow_plan.selection.workflow).toBe('render_qa');
     expect(promotion.payload.workflow_plan.selection.workflow).toBe('candidate_promotion');
+    expect(probe.payload.workflow_plan.path_expectation.required_steps).toEqual([
+      'sc_run_probe',
+      'sc_summarize_session',
+    ]);
+    expect(renderQa.payload.workflow_plan.path_expectation.required_steps).toEqual([
+      'sc_run_probe',
+      'sc_summarize_session',
+      'sc_candidate_action:add_review',
+    ]);
+    expect(promotion.payload.workflow_plan.path_expectation.required_steps).toEqual([
+      'sc_summarize_session',
+      'sc_candidate_action:add_review',
+      'sc_candidate_action',
+    ]);
 
     expect(probe.payload.role_packets.builder.allowed_tools).toEqual(['sc_run_probe']);
     expect(renderQa.payload.role_packets.builder.allowed_tools).toEqual(['sc_run_probe']);
@@ -331,6 +345,54 @@ describe('OrchestrationService', () => {
     expect(audit.payload.session_audit.artifact_completion.status).toBe('pass');
     expect(audit.payload.session_audit.review_gate.required).toBe(true);
     expect(audit.payload.session_audit.review_gate.present).toBe(false);
+    expect(audit.payload.session_audit.recommended_next_step).toBe('revise');
+  });
+
+  it('requires a review gate for sc-audio-generation sessions during audit', async () => {
+    const { orchestrationService, workflowService } = await makeServices();
+    const probe = await workflowService.runProbeCommand({
+      spec: {
+        id: 'probe-audio-generation',
+        title: 'Audio generation probe',
+        question: 'Produce a render artifact for delivery review',
+        mode: 'render',
+        code: '{ PinkNoise.ar(0.05) }.play;',
+        render: {
+          duration_sec: 0.25,
+          out_path: '/tmp/audio-generation.wav',
+        },
+        tags: ['sc-audio-generation'],
+      },
+    });
+
+    expect(probe.success).toBe(true);
+    if (!probe.success) {
+      throw new Error(probe.summary);
+    }
+
+    await workflowService.summarizeSessionCommand({
+      session_id: probe.payload.probe_run.session_id,
+      task: 'Audio generation review',
+      outcome: 'mixed',
+      preserved_items: ['render:/tmp/audio-generation.wav'],
+      failures: [],
+    });
+
+    const audit = await orchestrationService.auditSession({
+      session_id: probe.payload.probe_run.session_id,
+      task_tag: 'sc-audio-generation',
+    });
+
+    expect(audit.success).toBe(true);
+    if (!audit.success) {
+      throw new Error(audit.summary);
+    }
+
+    expect(audit.payload.session_audit.review_gate.required).toBe(true);
+    expect(audit.payload.session_audit.review_gate.present).toBe(false);
+    expect(audit.payload.session_audit.path_compliance.missing_required_steps).toContain(
+      'sc_candidate_action:add_review',
+    );
     expect(audit.payload.session_audit.recommended_next_step).toBe('revise');
   });
 

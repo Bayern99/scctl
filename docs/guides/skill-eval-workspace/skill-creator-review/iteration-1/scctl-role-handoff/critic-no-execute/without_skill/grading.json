@@ -1,0 +1,34 @@
+{
+  "run_id": "critic-no-execute-without_skill",
+  "skill": "scctl-role-handoff",
+  "eval_name": "critic-no-execute",
+  "config": "without_skill",
+  "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-role-handoff/critic-no-execute/without_skill/outputs/decision.md",
+  "expectations": [
+    {
+      "text": "Refuses to run sc_eval",
+      "passed": true,
+      "evidence": "sc_eval refused"
+    },
+    {
+      "text": "Explains critic forbids direct SC execution",
+      "passed": true,
+      "evidence": "critic execution constraint explained"
+    },
+    {
+      "text": "Redirects to sc_audit_session or add_review",
+      "passed": true,
+      "evidence": "redirects to review/audit tools"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 39.8,
+    "total_tokens": null
+  }
+}

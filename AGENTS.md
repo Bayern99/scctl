@@ -48,7 +48,7 @@ npm run test:watch   # vitest watch 模式
 | 层级 | 文件 | 职责 | 不要做什么 |
 |------|------|------|------------|
 | Runtime core | `src/runtime/driver.ts`, `sclang.ts`, `protocol.ts`, `driver-types.ts` | sclang 进程控制、状态机、脚本协议 | 不要把 lab/archive/eval/planner 逻辑塞进来 |
-| Transport | `src/cli.ts`, `src/mcp/server.ts` | 参数入口、调用 runtime、返回 JSON | 不要在这里加业务编排 |
+| Transport | `src/cli.ts`, `src/mcp/server.ts`, `src/transport/*` | 参数入口、共享 tool metadata/executor、governance、返回 JSON | 不要在这里加业务编排 |
 | Harness | `src/harness/*` | 任务标签、artifact contract、完成规则 | 不要依赖 prompt 做约束 |
 | Workflow | `src/workflow/service.ts` | plan / probe / summarize / candidate / memory 编排 | 不要直接 spawn sclang |
 | Lab | `src/lab/*` | probe、candidate 生命周期、review | 不要越过 driver 直接调 SclangController |
@@ -129,7 +129,7 @@ Plan H: Pilot Hardening
 关键约束：
 
 - raw `sc_eval / sc_run_file / sc_render` 保持为 operator/debug surface（默认不阻断）。
-- 设置 `SCCTL_GOVERNED_ROLE` 时，MCP/CLI 按 [`role-tool-policies.json`](docs/superpowers/kb/role-tool-policies.json) 阻断 forbidden raw tools。
+- 设置 `SCCTL_GOVERNED_ROLE` 时，MCP/CLI 按 [`role-tool-policies.json`](docs/superpowers/kb/role-tool-policies.json) 对完整 tool surface enforce allowlist；不只拦 raw runtime，也会拦超出角色范围的 workflow / orchestration tools。
 - `prepare_handoff` 成功后会写入 `.scctl/governed-role`，供 Cursor hooks 与 preflight 脚本感知 governed session。
 - raw `sc_render_nrt` 是 final-quality runtime surface，但仍不替代 governed workflow。
 - 受治理的创作 loop 默认走 orchestration + workflow tools。

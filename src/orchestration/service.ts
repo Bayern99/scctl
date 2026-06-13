@@ -1,5 +1,7 @@
 import { ArchiveRecord } from '../archive/archive-types.js';
 import { ArchiveStore } from '../archive/archive-store.js';
+import { collectArchiveCandidateIds } from '../archive/archive-query.js';
+import { getTaskPolicy } from '../harness/policies.js';
 import { normalizeTaskTag } from '../harness/task-tags.js';
 import { getRoleToolPolicy } from '../harness/role-policies.js';
 import { writeGovernedSessionMarker } from '../harness/governed-session-marker.js';
@@ -30,6 +32,7 @@ import {
   TaskEnvelope,
 } from './orchestration-types.js';
 import { selectWorkflow, WorkflowSelectionInput } from '../planner/workflow-selector.js';
+import { getWorkflowDefinition } from '../planner/workflow-definitions.js';
 import { WorkflowService } from '../workflow/service.js';
 
 interface OrchestrationServiceOptions {
@@ -243,14 +246,20 @@ export class OrchestrationService {
     const selection = selectWorkflow(
       inferSelectionInput(records, taskTag, primaryCandidateId, inferredQualityTier),
     );
-    const reviewRequired = taskTag === 'sc-render-review' || selection.workflow === 'candidate_promotion';
-    const requiredSteps = requiredGovernedSteps(selection.workflow, reviewRequired);
+    const taskPolicy = getTaskPolicy(taskTag);
+    const reviewRequired =
+      taskPolicy?.requires_review_note
+      || selection.workflow === 'candidate_promotion';
+    const workflowDefinition = getWorkflowDefinition(selection.workflow, {
+      finalNrtRequested: inferredQualityTier === 'final_nrt',
+      reviewRequired,
+    });
     const steps = records.flatMap((record) => recordToGovernedSteps(record));
     const pathResult = evaluatePathCompliance({
       workflow: selection.workflow,
       steps,
       allowedSteps: GOVERNED_ALLOWED_STEPS,
-      requiredSteps,
+      requiredSteps: [...workflowDefinition.required_trace_steps],
     });
 
     const probeRuns = records
@@ -440,12 +449,15 @@ function buildWorkflowContext(
   task: TaskEnvelope,
   taskTag: ReturnType<typeof normalizeTaskTag>,
 ): WorkflowSelectionInput {
+  const taskPolicy = getTaskPolicy(taskTag);
   return {
     task_label: taskTag ?? undefined,
     requested_outcome: task.requested_outcome,
     has_candidate: task.requested_outcome === 'promote',
     has_render_artifact: taskTag === 'sc-render-review',
-    requires_review: taskTag === 'sc-render-review' || task.requested_outcome === 'promote',
+    requires_review:
+      taskPolicy?.requires_review_note
+      || task.requested_outcome === 'promote',
     quality_tier: task.quality?.render_tier,
   };
 }
@@ -569,6 +581,7 @@ function inferSelectionInput(
   candidateId: string | null,
   qualityTier?: 'draft' | 'final_nrt',
 ): WorkflowSelectionInput {
+  const taskPolicy = getTaskPolicy(taskTag);
   const hasRenderArtifact = records.some(
     (record) =>
       record.kind === 'probe_run'
@@ -591,22 +604,9 @@ function inferSelectionInput(
           : 'explore',
     has_candidate: hasCandidate,
     has_render_artifact: hasRenderArtifact,
-    requires_review: taskTag === 'sc-render-review' || hasPromotionAction,
+    requires_review: taskPolicy?.requires_review_note || hasPromotionAction,
     quality_tier: qualityTier,
   };
-}
-
-function requiredGovernedSteps(workflow: string, reviewRequired: boolean): string[] {
-  if (workflow === 'candidate_promotion') {
-    return ['sc_summarize_session', 'sc_candidate_action:add_review', 'sc_candidate_action'];
-  }
-  if (workflow === 'render_qa') {
-    return reviewRequired
-      ? ['sc_run_probe', 'sc_summarize_session', 'sc_candidate_action:add_review']
-      : ['sc_run_probe', 'sc_summarize_session'];
-  }
-
-  return ['sc_run_probe', 'sc_summarize_session'];
 }
 
 function recordToGovernedSteps(record: ArchiveRecord): { name: string }[] {
@@ -780,33 +780,8 @@ function collectSessionCandidateIds(records: ArchiveRecord[]): string[] {
   const ids = new Set<string>();
 
   for (const record of records) {
-    const payload = record.payload as Record<string, unknown>;
-    if (typeof payload.candidate_id === 'string' && payload.candidate_id.trim()) {
-      ids.add(payload.candidate_id.trim());
-    }
-
-    const event = payload.event;
-    if (
-      event
-      && typeof event === 'object'
-      && typeof (event as Record<string, unknown>).candidate_id === 'string'
-    ) {
-      ids.add(((event as Record<string, unknown>).candidate_id as string).trim());
-    }
-
-    if (record.kind === 'session_summary') {
-      const preservedItems = Array.isArray((payload as SessionSummaryPayload).preserved_items)
-        ? ((payload as SessionSummaryPayload).preserved_items as string[])
-        : [];
-      for (const item of preservedItems) {
-        const normalized = item.trim().toLowerCase();
-        if (normalized.startsWith('candidate:') || normalized.startsWith('candidate_id:')) {
-          ids.add(item.split(':', 2)[1].trim());
-        }
-        if (/^cand[-_]/.test(normalized)) {
-          ids.add(item.trim());
-        }
-      }
+    for (const candidateId of collectArchiveCandidateIds(record)) {
+      ids.add(candidateId);
     }
   }
 

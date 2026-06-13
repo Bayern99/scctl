@@ -131,7 +131,7 @@ node dist/cli.js plan-workflow --context '{"task_tag":"sc-probe","goal":"inspect
 node dist/cli.js run-probe --spec '{"mode":"run_file","path":"/absolute/path/to/probe.scd","task_tag":"sc-probe"}'
 node dist/cli.js summarize-session --input '{"session_id":"session-1","task":"probe a texture","outcome":"mixed","preserved_items":["slow envelope contour"],"failures":["render clipped"],"notes":["keep the modulation shape"]}'
 node dist/cli.js candidate-action --input '{"session_id":"session-1","action":"create_draft","candidate_id":"cand-1","name":"grain-cloud-a","source_probe_id":"probe-1","summary":"promising density"}'
-node dist/cli.js memory-summary --limit 10
+node dist/cli.js memory-summary --limit 10   # recent session window, not record count
 
 # Governed handoff and audit
 node dist/cli.js prepare-handoff --input '{"task_id":"task-1","task_tag":"sc-audio-generation","goal":"render a Zhou Yi texture study","requested_outcome":"explore"}'
@@ -148,6 +148,20 @@ node dist/cli.js audit-session --input '{"session_id":"session-1","task_tag":"sc
 | IDE preflight hooks | Apply to MCP tool calls when configured | Do not apply to shell commands |
 
 MCP-only setup (no env, no hooks, no skills) still exposes all tools but defaults to **operator/debug** behavior — raw runtime tools are not hard-blocked.
+
+When `SCCTL_GOVERNED_ROLE` is set, the allowlist applies to the full CLI/MCP surface, not only raw runtime tools. Workflow and orchestration calls such as `candidate-action`, `prepare-handoff`, and `audit-session` are checked against the same role policy. Rejections use one contract on both transports:
+
+```json
+{
+  "success": false,
+  "error_kind": "governance_violation",
+  "role": "builder",
+  "tool": "sc_candidate_action",
+  "allowed_tools": ["sc_run_probe"],
+  "forbidden_paths": ["sc_eval", "sc_run_file", "sc_render", "sc_render_nrt"],
+  "summary": "Governed role \"builder\" may not use \"sc_candidate_action\". ..."
+}
+```
 
 ### Pilot server (MCP)
 
@@ -194,11 +208,11 @@ Additional governed workflow tools:
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
-| `sc_plan_workflow` | `spec` or `context` | Select a workflow and return prompts plus path expectations |
+| `sc_plan_workflow` | `spec` or `context` | Select a workflow and return prompts plus governed route/path expectations |
 | `sc_run_probe` | `spec` (required) | Validate and execute a `ProbeSpec` through `ScDriver` |
 | `sc_summarize_session` | structured summary payload | Append a session summary record to archive |
 | `sc_candidate_action` | structured lifecycle payload | Apply candidate lifecycle or review actions |
-| `sc_memory_summary` | `session_id`, `candidate_id`, `limit` (all optional) | Build a project-level memory summary from archive |
+| `sc_memory_summary` | `session_id`, `candidate_id`, `limit` (all optional) | Build a project-level memory summary from archive; `limit` means recent session window |
 | `sc_prepare_handoff` | task envelope | Prepare manager / builder / critic packets plus KB snapshot |
 | `sc_audit_session` | `session_id` (required), `task_tag`, `candidate_id` | Audit a governed session and recommend the next step |
 
@@ -211,6 +225,8 @@ Default governed creation loop (see [docs/operator-runbook.md](docs/operator-run
 ```text
 prepare-handoff → run-probe → summarize-session → candidate-action / add_review → audit-session → memory-summary
 ```
+
+`plan-workflow` now emits governed closure routes in `selection.recommended_tools` and canonical governed required steps in `path_expectation.required_steps`. Raw operator/debug hints stay in the runbook, not in planner payloads.
 
 Successful `audit-session` appends a `session_audit` record to `.scctl/archive/archive-events.jsonl`.
 

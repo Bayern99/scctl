@@ -7,6 +7,14 @@ import {
   ArchiveRecentSessionSummary,
   ArchiveRepeatedFailureSummary,
 } from './archive-types.js';
+import {
+  collectArchiveCandidateIds,
+  normalizeArchiveCandidateId,
+  normalizeArchiveText,
+  recordMatchesArchiveCandidate,
+  selectRecentSessionWindow,
+  sortArchiveRecords,
+} from './archive-query.js';
 
 type CandidateStatus = 'draft' | 'candidate' | 'accepted' | 'rejected' | 'revisit';
 
@@ -76,80 +84,6 @@ const CANDIDATE_STATUS_ORDER: CandidateStatus[] = ['draft', 'candidate', 'accept
 const SESSION_OUTCOME_ORDER = ['success', 'failure', 'mixed'] as const;
 const UNKNOWN_REJECTION_REASON = 'unspecified';
 
-function sortRecords(records: ArchiveRecord[]): ArchiveRecord[] {
-  return [...records].sort((left, right) => {
-    const createdAtCompare = right.created_at.localeCompare(left.created_at);
-    if (createdAtCompare !== 0) {
-      return createdAtCompare;
-    }
-
-    return right.id.localeCompare(left.id);
-  });
-}
-
-function normalizeText(value: string | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/\s+/g, ' ').toLowerCase();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function normalizeCandidateId(value: string | undefined): string | null {
-  return normalizeText(value);
-}
-
-function collectCandidateIds(record: ArchiveRecord): string[] {
-  const payload = record.payload as Record<string, unknown>;
-  const candidateIds = new Set<string>();
-
-  const directCandidateId = normalizeCandidateId(typeof payload.candidate_id === 'string' ? payload.candidate_id : undefined);
-  if (directCandidateId) {
-    candidateIds.add(directCandidateId);
-  }
-
-  const eventCandidateId = normalizeCandidateId(
-    typeof payload.event === 'object' && payload.event && typeof (payload.event as Record<string, unknown>).candidate_id === 'string'
-      ? ((payload.event as Record<string, unknown>).candidate_id as string)
-      : undefined,
-  );
-  if (eventCandidateId) {
-    candidateIds.add(eventCandidateId);
-  }
-
-  if (record.kind === 'session_summary') {
-    const preservedItems = Array.isArray((payload as SessionSummaryPayload).preserved_items)
-      ? ((payload as SessionSummaryPayload).preserved_items as string[])
-      : [];
-
-    for (const item of preservedItems) {
-      const normalizedItem = normalizeText(item);
-      if (!normalizedItem) {
-        continue;
-      }
-
-      if (normalizedItem.includes(':')) {
-        const [prefix, suffix] = normalizedItem.split(':', 2);
-        if (prefix === 'candidate' || prefix === 'cand' || prefix === 'candidate_id') {
-          const candidateId = normalizeCandidateId(suffix);
-          if (candidateId) {
-            candidateIds.add(candidateId);
-          }
-        }
-      } else if (/^cand[-_]/.test(normalizedItem)) {
-        candidateIds.add(normalizedItem);
-      }
-    }
-  }
-
-  return [...candidateIds].sort();
-}
-
-function recordMatchesCandidate(record: ArchiveRecord, candidateId: string): boolean {
-  return collectCandidateIds(record).includes(candidateId);
-}
-
 function getStatusFromLifecycle(record: ArchiveRecord<CandidateLifecyclePayload>): CandidateStatus | null {
   const status = record.payload?.event?.to_status;
   return status && CANDIDATE_STATUS_ORDER.includes(status) ? status : null;
@@ -160,18 +94,18 @@ function getReviewRejectionReason(record: ArchiveRecord<CandidateReviewPayload>)
     return null;
   }
 
-  return normalizeText(record.payload.review.summary)
-    ?? normalizeText(record.payload.review.details)
+  return normalizeArchiveText(record.payload.review.summary)
+    ?? normalizeArchiveText(record.payload.review.details)
     ?? UNKNOWN_REJECTION_REASON;
 }
 
 function getProbeMode(record: ArchiveRecord<ProbeRunArchivePayload>): string | null {
-  return normalizeText(record.payload?.spec?.mode);
+  return normalizeArchiveText(record.payload?.spec?.mode);
 }
 
 function getRenderMode(record: ArchiveRecord<ProbeRunArchivePayload>): 'draft' | 'nrt' | null {
   const renderArtifact = record.payload?.result?.artifacts?.find((artifact) => artifact?.kind === 'render');
-  const artifactMode = normalizeText(renderArtifact?.render_mode);
+  const artifactMode = normalizeArchiveText(renderArtifact?.render_mode);
   if (artifactMode === 'draft' || artifactMode === 'nrt') {
     return artifactMode;
   }
@@ -203,7 +137,7 @@ function hasFinalArtifact(record: ArchiveRecord<ProbeRunArchivePayload>): boolea
         artifact?.kind === 'render'
         && artifact.render_mode === 'nrt'
         && (artifact.bytes ?? 0) > 0
-        && normalizeText(artifact.path),
+        && normalizeArchiveText(artifact.path),
     ),
   );
 }
@@ -213,19 +147,19 @@ function getNrtFailureReason(record: ArchiveRecord<ProbeRunArchivePayload>): str
     return null;
   }
 
-  return normalizeText(record.payload?.result?.summary) ?? 'nrt_render_failed';
+  return normalizeArchiveText(record.payload?.result?.summary) ?? 'nrt_render_failed';
 }
 
 function getProbeId(record: ArchiveRecord<ProbeRunArchivePayload>): string | null {
-  return normalizeText(record.payload?.result?.probe_id);
+  return normalizeArchiveText(record.payload?.result?.probe_id);
 }
 
 function getSessionOutcome(record: ArchiveRecord<SessionSummaryPayload>): string | null {
-  return normalizeText(record.payload?.outcome);
+  return normalizeArchiveText(record.payload?.outcome);
 }
 
 function getPattern(item: string): string | null {
-  const normalized = normalizeText(item);
+  const normalized = normalizeArchiveText(item);
   if (!normalized) {
     return null;
   }
@@ -323,23 +257,20 @@ export function buildArchiveMemorySummary(
   records: ArchiveRecord[],
   options: ArchiveMemorySummaryOptions = {},
 ): ArchiveMemorySummary {
-  const normalizedCandidateId = normalizeCandidateId(options.candidate_id);
-  const matchedRecords = sortRecords(records).filter((record) => {
+  const normalizedCandidateId = normalizeArchiveCandidateId(options.candidate_id);
+  const matchedRecords = sortArchiveRecords(records).filter((record) => {
     if (options.session_id && record.session_id !== options.session_id) {
       return false;
     }
 
-    if (normalizedCandidateId && !recordMatchesCandidate(record, normalizedCandidateId)) {
+    if (normalizedCandidateId && !recordMatchesArchiveCandidate(record, normalizedCandidateId)) {
       return false;
     }
 
     return true;
   });
 
-  const limitedRecords =
-    typeof options.limit === 'number' && Number.isFinite(options.limit) && options.limit >= 0
-      ? matchedRecords.slice(0, options.limit)
-      : matchedRecords;
+  const limitedRecords = selectRecentSessionWindow(matchedRecords, options.limit);
 
   const recentSessions = new Map<string, SessionAccumulator>();
   const latestCandidateStatus = new Map<string, CandidateStatus>();
@@ -383,12 +314,12 @@ export function buildArchiveMemorySummary(
       session.last_recorded_at = record.created_at;
     }
 
-    for (const candidateId of collectCandidateIds(record)) {
+    for (const candidateId of collectArchiveCandidateIds(record)) {
       session.candidate_ids.add(candidateId);
     }
 
     if (record.kind === 'candidate_lifecycle') {
-      const candidateId = normalizeCandidateId((record.payload as CandidateLifecyclePayload).candidate_id);
+      const candidateId = normalizeArchiveCandidateId((record.payload as CandidateLifecyclePayload).candidate_id);
       const status = getStatusFromLifecycle(record as ArchiveRecord<CandidateLifecyclePayload>);
       if (candidateId && status && !latestCandidateStatus.has(candidateId)) {
         latestCandidateStatus.set(candidateId, status);
@@ -411,7 +342,7 @@ export function buildArchiveMemorySummary(
       }
 
       for (const failure of payload.failures ?? []) {
-        const normalizedFailure = normalizeText(failure);
+        const normalizedFailure = normalizeArchiveText(failure);
         if (!normalizedFailure) {
           continue;
         }
@@ -428,14 +359,14 @@ export function buildArchiveMemorySummary(
 
         failureEntry.count += 1;
         failureEntry.session_ids.add(record.session_id);
-        for (const candidateId of collectCandidateIds(record)) {
+        for (const candidateId of collectArchiveCandidateIds(record)) {
           failureEntry.candidate_ids.add(candidateId);
         }
       }
 
       for (const item of payload.preserved_items ?? []) {
         const pattern = getPattern(item);
-        const normalizedItem = normalizeText(item);
+        const normalizedItem = normalizeArchiveText(item);
         if (!pattern || !normalizedItem) {
           continue;
         }

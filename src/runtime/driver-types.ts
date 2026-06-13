@@ -13,6 +13,7 @@ export type DriverErrorKind =
   | 'capability_unavailable'
   | 'cleanup_failed'
   | 'engine_missing'
+  | 'governance_violation'
   | 'invalid_argument'
   | 'process_exit'
   | 'protocol_error'

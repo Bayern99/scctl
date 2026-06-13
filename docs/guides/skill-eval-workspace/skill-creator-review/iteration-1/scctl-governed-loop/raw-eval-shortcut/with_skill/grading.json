@@ -1,0 +1,39 @@
+{
+  "run_id": "raw-eval-shortcut-with_skill",
+  "skill": "scctl-governed-loop",
+  "eval_name": "raw-eval-shortcut",
+  "config": "with_skill",
+  "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-governed-loop/raw-eval-shortcut/with_skill/outputs/decision.md",
+  "expectations": [
+    {
+      "text": "Refuses to mark task complete",
+      "passed": true,
+      "evidence": "verdict is refusal"
+    },
+    {
+      "text": "Explains sc_eval is raw/operator/debug surface",
+      "passed": true,
+      "evidence": "sc_eval characterized as raw/operator/debug"
+    },
+    {
+      "text": "Mentions governed loop / workflow path as alternative",
+      "passed": true,
+      "evidence": "governed workflow mentioned"
+    },
+    {
+      "text": "Does not say 'yes, complete it'",
+      "passed": true,
+      "evidence": "no premature completion"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 61.2,
+    "total_tokens": null
+  }
+}
