@@ -27,12 +27,14 @@
   - WAV-aware render evaluation
   - minimal `sc/` primitive bootstrap assets
 - Governed creation and review should prefer workflow and orchestration tools over raw runtime tools.
+- `plan_workflow.selection.recommended_tools` is now a governed closure route, not a raw runtime shortcut list.
+- `memory_summary.limit` is a recent-session window, not a record-count cap.
 - If a task declares `final_nrt`, draft render is not sufficient for closure.
 
 ## Honest limits
 
 - **Soft route enforcement by default:** optional `task_tag` returns a `compliance` snapshot; MCP/CLI do not hard-block invalid routes unless governed mode is enabled (see below).
-- **Opt-in MCP/CLI RBAC (Phase 7.1):** set `SCCTL_GOVERNED_ROLE=manager|builder|critic` to enforce role tool allowlists in-process. Unset = operator/debug behavior unchanged.
+- **Opt-in MCP/CLI RBAC (Phase 7.1):** set `SCCTL_GOVERNED_ROLE=manager|builder|critic` to enforce role tool allowlists across runtime, workflow, and orchestration tools in-process. Unset = operator/debug behavior unchanged.
 - **Opt-in final_nrt hardening:** set `SCCTL_FINAL_NRT=1` with a governed role to reject draft `sc_render` / `render` in addition to role forbidden lists.
 - **IDE hooks:** `hooks/hooks.json` + `.cursor/hooks.json` call `hooks/scctl-governed-preflight.js` before raw MCP runtime tools; `hooks/scctl-session-start.js` on `sessionStart` for governed loop hints.
 - **Project Agent skills (Phase 7.2):** `.agents/skills/scctl-*` — procedural guides; spec in `docs/guides/agent-skills-spec.zh-CN.md`; human tutorial in `docs/guides/governed-pilot-tutorial.zh-CN.md`; consumer setup in `docs/guides/consumer-bootstrap.zh-CN.md`.

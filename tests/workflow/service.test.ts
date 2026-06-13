@@ -189,6 +189,10 @@ describe('WorkflowService', () => {
     expect(result.success).toBe(true);
     expect(result.payload?.validated_spec?.title).toBe('Metal bloom probe');
     expect(result.payload?.selection.workflow).toBe('probe');
+    expect(result.payload?.path_expectation.required_steps).toEqual([
+      'sc_run_probe',
+      'sc_summarize_session',
+    ]);
     expect(result.payload?.planner_system_prompt).toContain('SuperCollider Pilot planner');
   });
 
@@ -228,7 +232,22 @@ describe('WorkflowService', () => {
 
     expect(result.success).toBe(true);
     expect(result.payload?.selection.recommended_execution_mode).toBe('render_nrt');
-    expect(result.payload?.selection.recommended_tools).toContain('sc_render_nrt');
+    expect(result.payload?.selection.primary_role).toBe('critic');
+    expect(result.payload?.selection.recommended_tools).toEqual(
+      expect.arrayContaining([
+        'sc_prepare_handoff',
+        'sc_run_probe',
+        'sc_summarize_session',
+        'sc_candidate_action:add_review',
+        'sc_audit_session',
+        'sc_memory_summary',
+      ]),
+    );
+    expect(result.payload?.path_expectation.required_steps).toEqual([
+      'sc_run_probe',
+      'sc_summarize_session',
+      'sc_candidate_action:add_review',
+    ]);
   });
 
   it('returns validation issues for invalid specs without crashing', async () => {

@@ -3,6 +3,7 @@ import {
   type WorkflowKind,
   WORKFLOW_KINDS,
 } from '../planner/sc-spec-schema.js';
+import { getWorkflowDefinition } from '../planner/workflow-definitions.js';
 
 export interface PathStep {
   name: string;
@@ -36,17 +37,15 @@ export const DEFAULT_PILOT_STEPS = [
   'sc_reset',
   'sc_reboot',
   'sc_reclaim',
-  'artifact_review',
-  'candidate_review',
-  'memory_summary',
+  'sc_plan_workflow',
+  'sc_run_probe',
+  'sc_summarize_session',
+  'sc_candidate_action',
+  'sc_candidate_action:add_review',
+  'sc_memory_summary',
+  'sc_prepare_handoff',
+  'sc_audit_session',
 ] as const;
-
-const DEFAULT_REQUIRED_STEPS: Record<WorkflowKind, readonly string[]> = {
-  probe: ['sc_eval'],
-  patch_refinement: ['sc_eval'],
-  render_qa: ['sc_render', 'artifact_review'],
-  candidate_promotion: ['candidate_review'],
-};
 
 export function isWorkflowKind(value: string): value is WorkflowKind {
   return (WORKFLOW_KINDS as readonly string[]).includes(value);
@@ -58,7 +57,7 @@ export function evaluatePathCompliance(
   const steps = [...input.steps];
   const allowedSteps = new Set(input.allowedSteps ?? DEFAULT_PILOT_STEPS);
   const requiredSteps = [
-    ...(input.requiredSteps ?? DEFAULT_REQUIRED_STEPS[input.workflow]),
+    ...(input.requiredSteps ?? getWorkflowDefinition(input.workflow).required_trace_steps),
   ];
 
   const disallowedSteps = steps

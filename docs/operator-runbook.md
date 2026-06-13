@@ -48,10 +48,19 @@ Examples:
 ```bash
 # Builder may use sc_run_probe but not raw eval
 SCCTL_GOVERNED_ROLE=builder node dist/cli.js eval "1+1"   # rejected
+SCCTL_GOVERNED_ROLE=builder node dist/cli.js candidate-action --input '{"session_id":"s","action":"create_draft","candidate_id":"cand-1","name":"x","source_probe_id":"p"}'   # rejected
 
 # Operator/debug (default): unchanged
 node dist/cli.js eval "1+1"
 ```
+
+Governed rejection contract is identical on CLI and MCP:
+
+- `error_kind: "governance_violation"`
+- `role`
+- `tool`
+- `allowed_tools`
+- `forbidden_paths`
 
 After a successful `prepare-handoff`, Pilot writes `.scctl/governed-role` (gitignored) so Cursor hooks can block raw MCP tools even without env vars:
 
@@ -118,6 +127,12 @@ node dist/cli.js audit-session --input '{"session_id":"<session_id>","task_tag":
 # 6. Memory
 node dist/cli.js memory-summary --limit 10
 ```
+
+Notes:
+
+- `plan-workflow` returns governed routes in `selection.recommended_tools`; it no longer suggests raw runtime shortcuts in planner payloads.
+- `memory-summary --limit N` means "include the N most recent sessions" and then keep all records from those sessions.
+- File-backed `run` / `render` fail on source-path loading before runtime execution; they do not fall through to an empty-code render path.
 
 ## Archive layout
 

@@ -1,0 +1,34 @@
+{
+  "run_id": "quick-draft-explore-without_skill",
+  "skill": "scctl-draft-vs-final",
+  "eval_name": "quick-draft-explore",
+  "config": "without_skill",
+  "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-draft-vs-final/quick-draft-explore/without_skill/outputs/decision.md",
+  "expectations": [
+    {
+      "text": "Recommends sc_render (draft) as the primary answer",
+      "passed": true,
+      "evidence": "sc_render recommended as primary answer"
+    },
+    {
+      "text": "States no final closure / no NRT required for this request",
+      "passed": true,
+      "evidence": "no final closure expectation"
+    },
+    {
+      "text": "Does not recommend sc_render_nrt as the answer for this quick draft",
+      "passed": true,
+      "evidence": "NRT not primary answer"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 36.7,
+    "total_tokens": null
+  }
+}

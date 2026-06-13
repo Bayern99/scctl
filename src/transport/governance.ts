@@ -4,6 +4,7 @@ import {
   GovernedToolCheckOptions,
 } from '../harness/role-policies.js';
 import { DriverResult } from '../runtime/driver-types.js';
+import { findTransportToolByCliCommand } from './tool-metadata.js';
 
 export interface GovernanceErrorPayload {
   success: false;
@@ -46,19 +47,12 @@ export function buildGovernanceDriverResult(
     phase,
     session_id: null,
     recoverable: true,
-    error_kind: 'invalid_argument',
+    error_kind: 'governance_violation',
     summary: violation.summary,
     raw_output: '',
   };
 }
 
-export const CLI_COMMAND_TOOL_MAP: Record<string, string> = {
-  eval: 'sc_eval',
-  run: 'sc_run_file',
-  render: 'sc_render',
-  'render-nrt': 'sc_render_nrt',
-};
-
 export function cliCommandToGovernedTool(commandName: string): string | null {
-  return CLI_COMMAND_TOOL_MAP[commandName] ?? null;
+  return findTransportToolByCliCommand(commandName)?.name ?? null;
 }

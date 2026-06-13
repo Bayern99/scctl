@@ -76,7 +76,11 @@ describe('eval helpers', () => {
 
     expect(result.compliance_rate).toBe(0.5);
     expect(result.disallowed_steps).toEqual(['scp_upload']);
-    expect(result.missing_required_steps).toEqual(['artifact_review']);
+    expect(result.missing_required_steps).toEqual([
+      'sc_run_probe',
+      'sc_summarize_session',
+      'sc_candidate_action:add_review',
+    ]);
     expect(result.summary.grade).toBe('fail');
   });
 

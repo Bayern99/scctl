@@ -1,0 +1,59 @@
+{
+  "run_id": "final-nrt-closure-without_skill",
+  "skill": "scctl-governed-loop",
+  "eval_name": "final-nrt-closure",
+  "config": "without_skill",
+  "decision_path": "/Users/dmus/Transverse Sound Lab/super/docs/guides/skill-eval-workspace/skill-creator-review/iteration-1/scctl-governed-loop/final-nrt-closure/without_skill/outputs/decision.md",
+  "expectations": [
+    {
+      "text": "Mentions sc_run_probe as part of closure",
+      "passed": true,
+      "evidence": "sc_run_probe appears"
+    },
+    {
+      "text": "Mentions NRT / render_nrt final-quality path",
+      "passed": true,
+      "evidence": "NRT path mentioned"
+    },
+    {
+      "text": "Mentions sc_summarize_session",
+      "passed": true,
+      "evidence": "summarize mentioned"
+    },
+    {
+      "text": "Mentions sc_audit_session",
+      "passed": true,
+      "evidence": "audit mentioned"
+    },
+    {
+      "text": "Mentions sc_memory_summary",
+      "passed": true,
+      "evidence": "memory summary mentioned"
+    },
+    {
+      "text": "Does not propose sc_eval as terminal step",
+      "passed": true,
+      "evidence": "sc_eval rejected or absent"
+    },
+    {
+      "text": "Does not propose sc_run_file as terminal step",
+      "passed": true,
+      "evidence": "sc_run_file rejected or absent"
+    },
+    {
+      "text": "Does not propose sc_render (draft) as terminal step",
+      "passed": true,
+      "evidence": "sc_render rejected or absent"
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "total": 8,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 131.6,
+    "total_tokens": null
+  }
+}

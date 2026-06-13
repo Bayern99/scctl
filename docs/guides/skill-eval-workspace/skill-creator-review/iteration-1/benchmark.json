@@ -1,0 +1,571 @@
+{
+  "metadata": {
+    "skill_name": "scctl-skills-review",
+    "skill_path": "/Users/dmus/Transverse Sound Lab/super/.agents/skills",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-06-13T16:47:16Z",
+    "evals_run": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "scctl-draft-vs-final / draft-as-final",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 34.3,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Answers NO to closing with draft",
+          "passed": true,
+          "evidence": "draft rejected as final"
+        },
+        {
+          "text": "Mentions sc_render_nrt / NRT as required",
+          "passed": true,
+          "evidence": "NRT path mentioned"
+        },
+        {
+          "text": "Mentions audit / review / summarize gate",
+          "passed": true,
+          "evidence": "closure gate mentioned"
+        },
+        {
+          "text": "Does not claim the draft is sufficient for final closure",
+          "passed": true,
+          "evidence": "no draft sufficiency claim for final closure"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "scctl-draft-vs-final / draft-as-final",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 33.5,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Answers NO to closing with draft",
+          "passed": true,
+          "evidence": "draft rejected as final"
+        },
+        {
+          "text": "Mentions sc_render_nrt / NRT as required",
+          "passed": true,
+          "evidence": "NRT path mentioned"
+        },
+        {
+          "text": "Mentions audit / review / summarize gate",
+          "passed": true,
+          "evidence": "closure gate mentioned"
+        },
+        {
+          "text": "Does not claim the draft is sufficient for final closure",
+          "passed": true,
+          "evidence": "no draft sufficiency claim for final closure"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "scctl-draft-vs-final / quick-draft-explore",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 42.7,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Recommends sc_render (draft) as the primary answer",
+          "passed": true,
+          "evidence": "sc_render recommended as primary answer"
+        },
+        {
+          "text": "States no final closure / no NRT required for this request",
+          "passed": true,
+          "evidence": "no final closure expectation"
+        },
+        {
+          "text": "Does not recommend sc_render_nrt as the answer for this quick draft",
+          "passed": true,
+          "evidence": "NRT not primary answer"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "scctl-draft-vs-final / quick-draft-explore",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 36.7,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Recommends sc_render (draft) as the primary answer",
+          "passed": true,
+          "evidence": "sc_render recommended as primary answer"
+        },
+        {
+          "text": "States no final closure / no NRT required for this request",
+          "passed": true,
+          "evidence": "no final closure expectation"
+        },
+        {
+          "text": "Does not recommend sc_render_nrt as the answer for this quick draft",
+          "passed": true,
+          "evidence": "NRT not primary answer"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "scctl-governed-loop / final-nrt-closure",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 179.7,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Mentions sc_run_probe as part of closure",
+          "passed": true,
+          "evidence": "sc_run_probe appears"
+        },
+        {
+          "text": "Mentions NRT / render_nrt final-quality path",
+          "passed": true,
+          "evidence": "NRT path mentioned"
+        },
+        {
+          "text": "Mentions sc_summarize_session",
+          "passed": true,
+          "evidence": "summarize mentioned"
+        },
+        {
+          "text": "Mentions sc_audit_session",
+          "passed": true,
+          "evidence": "audit mentioned"
+        },
+        {
+          "text": "Mentions sc_memory_summary",
+          "passed": true,
+          "evidence": "memory summary mentioned"
+        },
+        {
+          "text": "Does not propose sc_eval as terminal step",
+          "passed": true,
+          "evidence": "sc_eval rejected or absent"
+        },
+        {
+          "text": "Does not propose sc_run_file as terminal step",
+          "passed": true,
+          "evidence": "sc_run_file rejected or absent"
+        },
+        {
+          "text": "Does not propose sc_render (draft) as terminal step",
+          "passed": true,
+          "evidence": "sc_render rejected or absent"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "scctl-governed-loop / final-nrt-closure",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 131.6,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Mentions sc_run_probe as part of closure",
+          "passed": true,
+          "evidence": "sc_run_probe appears"
+        },
+        {
+          "text": "Mentions NRT / render_nrt final-quality path",
+          "passed": true,
+          "evidence": "NRT path mentioned"
+        },
+        {
+          "text": "Mentions sc_summarize_session",
+          "passed": true,
+          "evidence": "summarize mentioned"
+        },
+        {
+          "text": "Mentions sc_audit_session",
+          "passed": true,
+          "evidence": "audit mentioned"
+        },
+        {
+          "text": "Mentions sc_memory_summary",
+          "passed": true,
+          "evidence": "memory summary mentioned"
+        },
+        {
+          "text": "Does not propose sc_eval as terminal step",
+          "passed": true,
+          "evidence": "sc_eval rejected or absent"
+        },
+        {
+          "text": "Does not propose sc_run_file as terminal step",
+          "passed": true,
+          "evidence": "sc_run_file rejected or absent"
+        },
+        {
+          "text": "Does not propose sc_render (draft) as terminal step",
+          "passed": true,
+          "evidence": "sc_render rejected or absent"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "scctl-governed-loop / raw-eval-shortcut",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 61.2,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Refuses to mark task complete",
+          "passed": true,
+          "evidence": "verdict is refusal"
+        },
+        {
+          "text": "Explains sc_eval is raw/operator/debug surface",
+          "passed": true,
+          "evidence": "sc_eval characterized as raw/operator/debug"
+        },
+        {
+          "text": "Mentions governed loop / workflow path as alternative",
+          "passed": true,
+          "evidence": "governed workflow mentioned"
+        },
+        {
+          "text": "Does not say 'yes, complete it'",
+          "passed": true,
+          "evidence": "no premature completion"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "scctl-governed-loop / raw-eval-shortcut",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 53.9,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Refuses to mark task complete",
+          "passed": true,
+          "evidence": "verdict is refusal"
+        },
+        {
+          "text": "Explains sc_eval is raw/operator/debug surface",
+          "passed": true,
+          "evidence": "sc_eval characterized as raw/operator/debug"
+        },
+        {
+          "text": "Mentions governed loop / workflow path as alternative",
+          "passed": true,
+          "evidence": "governed workflow mentioned"
+        },
+        {
+          "text": "Does not say 'yes, complete it'",
+          "passed": true,
+          "evidence": "no premature completion"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "scctl-role-handoff / builder-final-nrt-allowlist",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 49.1,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Lists sc_run_probe as allowed",
+          "passed": true,
+          "evidence": "sc_run_probe allowed"
+        },
+        {
+          "text": "Lists sc_render_nrt as allowed (final_nrt variant)",
+          "passed": true,
+          "evidence": "sc_render_nrt allowed"
+        },
+        {
+          "text": "Lists sc_eval as forbidden",
+          "passed": true,
+          "evidence": "sc_eval forbidden"
+        },
+        {
+          "text": "Lists sc_render as forbidden",
+          "passed": true,
+          "evidence": "sc_render forbidden"
+        },
+        {
+          "text": "Cites canonical role/policy files",
+          "passed": true,
+          "evidence": "canonical sources cited"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "scctl-role-handoff / builder-final-nrt-allowlist",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 73.4,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Lists sc_run_probe as allowed",
+          "passed": true,
+          "evidence": "sc_run_probe allowed"
+        },
+        {
+          "text": "Lists sc_render_nrt as allowed (final_nrt variant)",
+          "passed": true,
+          "evidence": "sc_render_nrt allowed"
+        },
+        {
+          "text": "Lists sc_eval as forbidden",
+          "passed": true,
+          "evidence": "sc_eval forbidden"
+        },
+        {
+          "text": "Lists sc_render as forbidden",
+          "passed": true,
+          "evidence": "sc_render forbidden"
+        },
+        {
+          "text": "Cites canonical role/policy files",
+          "passed": true,
+          "evidence": "canonical sources cited"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "scctl-role-handoff / critic-no-execute",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 26.9,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Refuses to run sc_eval",
+          "passed": true,
+          "evidence": "sc_eval refused"
+        },
+        {
+          "text": "Explains critic forbids direct SC execution",
+          "passed": true,
+          "evidence": "critic execution constraint explained"
+        },
+        {
+          "text": "Redirects to sc_audit_session or add_review",
+          "passed": true,
+          "evidence": "redirects to review/audit tools"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "scctl-role-handoff / critic-no-execute",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 39.8,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Refuses to run sc_eval",
+          "passed": true,
+          "evidence": "sc_eval refused"
+        },
+        {
+          "text": "Explains critic forbids direct SC execution",
+          "passed": true,
+          "evidence": "critic execution constraint explained"
+        },
+        {
+          "text": "Redirects to sc_audit_session or add_review",
+          "passed": true,
+          "evidence": "redirects to review/audit tools"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 65.65,
+        "stddev": 57.1178,
+        "min": 26.9,
+        "max": 179.7
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 61.4833,
+        "stddev": 37.3719,
+        "min": 33.5,
+        "max": 131.6
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.00",
+      "time_seconds": "+4.2",
+      "tokens": "+0"
+    }
+  },
+  "notes": [
+    "All evals achieved 100% pass rate in both with-skill and without-skill configurations.",
+    "Baseline (without skill) performs correctly because project docs (AGENTS.md, role-tool-policies.json, operator-runbook.md) are explicit.",
+    "Skill value is qualitative: with-skill outputs cite the skill and canonical files more directly; without-skill outputs perform broader file searches.",
+    "Average execution time is similar between configurations; per-skill variance is high due to only one run per eval."
+  ]
+}

@@ -98,6 +98,7 @@ describe('CLI shell interface', () => {
     expect(exitCode).toBe(1);
     expect(result.success).toBe(false);
     expect(result.error_kind).toBe('invalid_argument');
+    expect(result.summary).toContain('File not found: ./does-not-exist.scd');
     expect(result.compliance).toMatchObject({
       status: 'not_applicable',
       used_pilot: true,
@@ -116,6 +117,8 @@ describe('CLI shell interface', () => {
 
     expect(exitCode).toBe(1);
     expect(result.success).toBe(false);
+    expect(result.error_kind).toBe('invalid_argument');
+    expect(result.summary).toContain('File not found: ./does-not-exist.scd');
     expect(result.compliance).toMatchObject({
       status: 'failed',
       task_tag: 'sc-audio-generation',
@@ -322,7 +325,106 @@ describe('CLI shell interface', () => {
     const result = parseJsonOutput(stdout);
 
     expect(exitCode).toBe(1);
+    expect(result.error_kind).toBe('governance_violation');
+    expect(result.role).toBe('builder');
+    expect(result.tool).toBe('sc_eval');
+    expect(result.allowed_tools).toContain('sc_run_probe');
+    expect(result.forbidden_paths).toContain('sc_eval');
     expect(result.summary).toContain('Governed role "builder"');
     expect(result.summary).toContain('sc_eval');
+  });
+
+  it('blocks builder workflow mutations while allowing governed probe execution', () => {
+    const blocked = parseJsonOutput(
+      runCli(
+        `candidate-action --input '${JSON.stringify({
+          session_id: 'session-builder-1',
+          action: 'create_draft',
+          candidate_id: 'cand-builder-1',
+          name: 'blocked',
+          source_probe_id: 'probe-builder-1',
+        })}'`,
+        { SCCTL_GOVERNED_ROLE: 'builder' },
+      ).stdout,
+    );
+    expect(blocked.error_kind).toBe('governance_violation');
+    expect(blocked.tool).toBe('sc_candidate_action');
+
+    const allowed = parseJsonOutput(
+      runCli(
+        `run-probe --spec '${JSON.stringify({
+          id: 'probe-builder-1',
+          title: 'Builder probe',
+          question: 'Missing code should fail after governance allows the tool.',
+          mode: 'eval',
+          tags: ['sc-probe'],
+        })}'`,
+        { SCCTL_GOVERNED_ROLE: 'builder' },
+      ).stdout,
+    );
+    expect(allowed.error_kind).toBe('invalid_argument');
+    expect(allowed.summary).not.toContain('governance_violation');
+  });
+
+  it('allows manager handoff tools but rejects execution tools', () => {
+    const allowed = parseJsonOutput(
+      runCli(
+        `prepare-handoff --input '${JSON.stringify({
+          task_id: 'task-manager-1',
+          task_tag: 'sc-probe',
+          goal: 'Prepare governed loop',
+          requested_outcome: 'explore',
+        })}'`,
+        { SCCTL_GOVERNED_ROLE: 'manager' },
+      ).stdout,
+    );
+    expect(allowed.success).toBe(true);
+    expect(allowed.action).toBe('prepare_handoff');
+
+    const blocked = parseJsonOutput(
+      runCli(
+        `run-probe --spec '${JSON.stringify({
+          id: 'probe-manager-1',
+          title: 'Manager probe',
+          question: 'Managers should not execute.',
+          mode: 'eval',
+          code: '{ SinOsc.ar(440) }.play;',
+          tags: ['sc-probe'],
+        })}'`,
+        { SCCTL_GOVERNED_ROLE: 'manager' },
+      ).stdout,
+    );
+    expect(blocked.error_kind).toBe('governance_violation');
+    expect(blocked.tool).toBe('sc_run_probe');
+  });
+
+  it('allows critic audit tools but rejects execution tools', () => {
+    const allowed = parseJsonOutput(
+      runCli(
+        `audit-session --input '${JSON.stringify({
+          session_id: 'missing-critic-session',
+          task_tag: 'sc-probe',
+        })}'`,
+        { SCCTL_GOVERNED_ROLE: 'critic' },
+      ).stdout,
+    );
+    expect(allowed.error_kind).toBe('invalid_argument');
+    expect(allowed.summary).not.toContain('governance_violation');
+
+    const blocked = parseJsonOutput(
+      runCli(
+        `run-probe --spec '${JSON.stringify({
+          id: 'probe-critic-1',
+          title: 'Critic probe',
+          question: 'Critics should not execute.',
+          mode: 'eval',
+          code: '{ SinOsc.ar(330) }.play;',
+          tags: ['sc-probe'],
+        })}'`,
+        { SCCTL_GOVERNED_ROLE: 'critic' },
+      ).stdout,
+    );
+    expect(blocked.error_kind).toBe('governance_violation');
+    expect(blocked.tool).toBe('sc_run_probe');
   });
 });

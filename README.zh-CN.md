@@ -131,7 +131,7 @@ node dist/cli.js plan-workflow --context '{"task_tag":"sc-probe","goal":"inspect
 node dist/cli.js run-probe --spec '{"mode":"run_file","path":"/absolute/path/to/probe.scd","task_tag":"sc-probe"}'
 node dist/cli.js summarize-session --input '{"session_id":"session-1","task":"probe a texture","outcome":"mixed","preserved_items":["slow envelope contour"],"failures":["render clipped"],"notes":["keep the modulation shape"]}'
 node dist/cli.js candidate-action --input '{"session_id":"session-1","action":"create_draft","candidate_id":"cand-1","name":"grain-cloud-a","source_probe_id":"probe-1","summary":"promising density"}'
-node dist/cli.js memory-summary --limit 10
+node dist/cli.js memory-summary --limit 10   # 表示最近 session 窗口，不是 record 数
 
 # 治理层 handoff 与 audit
 node dist/cli.js prepare-handoff --input '{"task_id":"task-1","task_tag":"sc-audio-generation","goal":"render a Zhou Yi texture study","requested_outcome":"explore"}'
@@ -148,6 +148,20 @@ node dist/cli.js audit-session --input '{"session_id":"session-1","task_tag":"sc
 | IDE preflight | 配置后对 MCP 工具有效 | 对 shell 命令无效 |
 
 仅 MCP、不设 env / hooks / skills 时，工具仍可用，但默认 **operator/debug** 面，raw runtime 不硬拦。
+
+一旦设置 `SCCTL_GOVERNED_ROLE`，allowlist 会覆盖完整 CLI/MCP surface，而不只是 raw runtime 工具。`candidate-action`、`prepare-handoff`、`audit-session` 这类 workflow / orchestration 调用也会按同一角色策略拒绝。两侧拒绝 contract 统一为：
+
+```json
+{
+  "success": false,
+  "error_kind": "governance_violation",
+  "role": "builder",
+  "tool": "sc_candidate_action",
+  "allowed_tools": ["sc_run_probe"],
+  "forbidden_paths": ["sc_eval", "sc_run_file", "sc_render", "sc_render_nrt"],
+  "summary": "Governed role \"builder\" may not use \"sc_candidate_action\". ..."
+}
+```
 
 ### Pilot 服务（MCP）
 
@@ -194,11 +208,11 @@ operator/debug 时不设 `SCCTL_GOVERNED_ROLE`。可选：将 `.agents/skills/sc
 
 | 工具 | 参数 | 说明 |
 |------|------|------|
-| `sc_plan_workflow` | `spec` 或 `context` | 选择 workflow，并返回 prompts 与 path expectation |
+| `sc_plan_workflow` | `spec` 或 `context` | 选择 workflow，并返回 governed route 与 path expectation |
 | `sc_run_probe` | `spec`（必填） | 通过 `ScDriver` 校验并执行 `ProbeSpec` |
 | `sc_summarize_session` | 结构化 summary payload | 将 session summary append 到 archive |
 | `sc_candidate_action` | 结构化 lifecycle payload | 执行 candidate 生命周期或 review 动作 |
-| `sc_memory_summary` | `session_id`、`candidate_id`、`limit`（均可选） | 从 archive 构建 project-level memory summary |
+| `sc_memory_summary` | `session_id`、`candidate_id`、`limit`（均可选） | 从 archive 构建 project-level memory summary；`limit` 表示 recent session window |
 | `sc_prepare_handoff` | task envelope | 生成 manager / builder / critic packets 与 KB snapshot |
 | `sc_audit_session` | `session_id`（必填）、`task_tag`、`candidate_id` | 审计一次受治理 session，并给出 next step |
 
@@ -211,6 +225,8 @@ operator/debug 时不设 `SCCTL_GOVERNED_ROLE`。可选：将 `.agents/skills/sc
 ```text
 prepare-handoff → run-probe → summarize-session → candidate-action / add_review → audit-session → memory-summary
 ```
+
+`plan-workflow` 的 `selection.recommended_tools` 现在返回 governed 闭环 route，`path_expectation.required_steps` 返回 canonical governed required steps。raw operator/debug 提示保留在 runbook，不再混入 planner payload。
 
 `audit-session` 成功后会向 `.scctl/archive/archive-events.jsonl` 追加 `session_audit` 记录。
 

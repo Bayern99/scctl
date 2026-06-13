@@ -27,7 +27,7 @@ export function buildWorkflowPrompt(
     `Quality tier: ${spec.quality?.render_tier ?? 'draft'}`,
     `Engine preference: ${spec.quality?.engine_preference ?? 'auto'}`,
     `Sample format: ${spec.quality?.sample_format ?? 'float'}`,
-    `Recommended tools: ${selection.recommended_tools.join(' -> ')}`,
+    `Recommended governed route: ${selection.recommended_tools.join(' -> ')}`,
     `Primary role: ${selection.primary_role}`,
     `Reasoning anchors: ${selection.reasons.join(' ')}`,
   ].join('\n');
@@ -51,7 +51,7 @@ export function buildBuilderPrompt(spec: ScSpec): string {
 
 export function buildEvaluatorPrompt(spec: ScSpec): string {
   return [
-    'Evaluator role: read artifacts, logs, and eval signals only.',
+    'Critic role: read artifacts, logs, and eval signals only.',
     `Workflow: ${spec.workflow}`,
     `Title: ${spec.title}`,
     `Render tier: ${spec.quality?.render_tier ?? 'draft'}`,

@@ -583,6 +583,41 @@ describe('Pilot MCP server', () => {
     expect(renderResponse.content[0].text).toContain('"source_kind": "inline_code"');
   });
 
+  it('fails file-backed run and render before driver execution when source loading fails', async () => {
+    mockReadScdFile.mockImplementation((filePath: string) => {
+      throw new Error(`File not found: ${filePath}`);
+    });
+    const callToolHandler = (server as any)._requestHandlers.get('tools/call');
+    const driver = getActiveDriver() as any;
+
+    const runResponse = await callToolHandler(
+      {
+        method: 'tools/call',
+        params: { name: 'sc_run_file', arguments: { path: '/tmp/missing.scd' } },
+      },
+      { signal: new AbortController().signal },
+    );
+    expect(runResponse.isError).toBe(true);
+    expect(runResponse.content[0].text).toContain('"error_kind": "invalid_argument"');
+    expect(runResponse.content[0].text).toContain('File not found: /tmp/missing.scd');
+    expect(driver.runFile).not.toHaveBeenCalled();
+
+    const renderResponse = await callToolHandler(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'sc_render',
+          arguments: { path: '/tmp/missing.scd', out: '/tmp/out.wav' },
+        },
+      },
+      { signal: new AbortController().signal },
+    );
+    expect(renderResponse.isError).toBe(true);
+    expect(renderResponse.content[0].text).toContain('"error_kind": "invalid_argument"');
+    expect(renderResponse.content[0].text).toContain('File not found: /tmp/missing.scd');
+    expect(driver.render).not.toHaveBeenCalled();
+  });
+
   it('routes health, reset, reboot, reclaim, logs, and stop to the driver', async () => {
     const callToolHandler = (server as any)._requestHandlers.get('tools/call');
     const driver = getActiveDriver() as any;
@@ -638,7 +673,25 @@ describe('Pilot MCP server', () => {
       expect(blocked.isError).toBe(true);
       expect(blocked.content[0].text).toContain('governance_violation');
       expect(blocked.content[0].text).toContain('sc_eval');
+      expect(blocked.content[0].text).toContain('"role": "builder"');
       expect(driver.eval).not.toHaveBeenCalled();
+
+      const blockedLifecycle = await callToolHandler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'sc_candidate_action',
+            arguments: {
+              session_id: 'session-builder-1',
+              action: 'create_draft',
+              candidate_id: 'cand-builder-1',
+            },
+          },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(blockedLifecycle.isError).toBe(true);
+      expect(blockedLifecycle.content[0].text).toContain('"tool": "sc_candidate_action"');
 
       const allowed = await callToolHandler(
         {
@@ -652,6 +705,98 @@ describe('Pilot MCP server', () => {
       );
 
       expect(allowed.content[0].text).not.toContain('governance_violation');
+    } finally {
+      if (previousRole === undefined) {
+        delete process.env.SCCTL_GOVERNED_ROLE;
+      } else {
+        process.env.SCCTL_GOVERNED_ROLE = previousRole;
+      }
+    }
+  });
+
+  it('enforces manager and critic governed matrices on workflow tools', async () => {
+    const callToolHandler = (server as any)._requestHandlers.get('tools/call');
+    const previousRole = process.env.SCCTL_GOVERNED_ROLE;
+
+    try {
+      process.env.SCCTL_GOVERNED_ROLE = 'manager';
+      const managerAllowed = await callToolHandler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'sc_prepare_handoff',
+            arguments: {
+              task_id: 'task-manager-1',
+              task_tag: 'sc-probe',
+              goal: 'Prepare governed loop',
+              requested_outcome: 'explore',
+            },
+          },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(managerAllowed.isError).toBe(false);
+
+      const managerBlocked = await callToolHandler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'sc_run_probe',
+            arguments: {
+              spec: {
+                id: 'probe-manager-1',
+                title: 'Manager probe',
+                question: 'Managers should not execute.',
+                mode: 'eval',
+                code: '{ SinOsc.ar(440) }.play;',
+                tags: ['sc-probe'],
+              },
+            },
+          },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(managerBlocked.isError).toBe(true);
+      expect(managerBlocked.content[0].text).toContain('"tool": "sc_run_probe"');
+
+      process.env.SCCTL_GOVERNED_ROLE = 'critic';
+      const criticAllowed = await callToolHandler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'sc_audit_session',
+            arguments: {
+              session_id: 'missing-critic-session',
+              task_tag: 'sc-probe',
+            },
+          },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(criticAllowed.content[0].text).not.toContain('governance_violation');
+
+      const criticBlocked = await callToolHandler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'sc_run_probe',
+            arguments: {
+              spec: {
+                id: 'probe-critic-1',
+                title: 'Critic probe',
+                question: 'Critics should not execute.',
+                mode: 'eval',
+                code: '{ SinOsc.ar(330) }.play;',
+                tags: ['sc-probe'],
+              },
+            },
+          },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(criticBlocked.isError).toBe(true);
+      expect(criticBlocked.content[0].text).toContain('"role": "critic"');
+      expect(criticBlocked.content[0].text).toContain('"tool": "sc_run_probe"');
     } finally {
       if (previousRole === undefined) {
         delete process.env.SCCTL_GOVERNED_ROLE;

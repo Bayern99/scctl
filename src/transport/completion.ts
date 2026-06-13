@@ -15,9 +15,9 @@ export interface CompletionInput {
 }
 
 export function attachCompletion(
-  result: DriverResult<RenderArtifact>,
+  result: DriverResult<RenderArtifact | undefined>,
   input: CompletionInput,
-): DriverResult<RenderArtifact> {
+): DriverResult<RenderArtifact | undefined> {
   const nextArtifact =
     input.sourceKind === 'scd_file' && result.artifact
       ? {

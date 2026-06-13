@@ -12,6 +12,7 @@ import { evaluatePathCompliance, DEFAULT_PILOT_STEPS } from '../evals/path-compl
 import { evaluateRenderQuality } from '../evals/render-quality.js';
 import { evaluateTaskOutcome } from '../evals/task-outcome.js';
 import { gradeTrace } from '../evals/trace-grading.js';
+import { getTaskPolicy } from '../harness/policies.js';
 import { CandidateRegistry } from '../lab/candidate-registry.js';
 import {
   CandidateReviewNote,
@@ -33,6 +34,7 @@ import {
   WorkflowSelection,
   WorkflowSelectionInput,
 } from '../planner/workflow-selector.js';
+import { getWorkflowDefinition } from '../planner/workflow-definitions.js';
 import { ScDriver } from '../runtime/driver.js';
 import { readScdFile } from '../runtime/sc-file.js';
 import { DriverResult, RenderArtifact } from '../runtime/driver-types.js';
@@ -237,6 +239,7 @@ export class WorkflowService {
 
     if (validation && !validation.ok) {
       const selection = selectWorkflow(input.context ?? {});
+      const definition = definitionFromSelection(selection);
       return this.error('plan_workflow', 'invalid_argument', 'SC spec validation failed.', {
         builder_prompt: null,
         evaluator_prompt: null,
@@ -247,13 +250,14 @@ export class WorkflowService {
         workflow_prompt: null,
         path_expectation: {
           allowed_steps: DEFAULT_PILOT_STEPS,
-          required_steps: selection.recommended_tools,
+          required_steps: [...definition.required_trace_steps],
         },
       }, validation.issues.map((issue) => `${issue.path}: ${issue.message}`));
     }
 
     const spec = validation?.ok ? (input.spec as ScSpec) : null;
     const selection = selectWorkflow(spec ? { spec } : input.context ?? {});
+    const definition = definitionFromSelection(selection);
 
     return this.success('plan_workflow', 'Workflow plan prepared.', {
       builder_prompt: spec ? buildBuilderPrompt(spec) : null,
@@ -267,7 +271,7 @@ export class WorkflowService {
         : null,
       path_expectation: {
         allowed_steps: DEFAULT_PILOT_STEPS,
-        required_steps: selection.recommended_tools,
+        required_steps: [...definition.required_trace_steps],
       },
     });
   }
@@ -280,14 +284,15 @@ export class WorkflowService {
       const probeRun = await runProbe(adapter, input.spec, {
         archive: this.archive,
       });
-      const actionName = probeActionName(input.spec.mode);
       const tag = inferTaskLabel(input.spec.tags);
+      const taskPolicy = getTaskPolicy(tag);
       const selection = selectWorkflow({
         task_label: tag,
         requested_outcome: tag === 'sc-render-review' ? 'review' : 'explore',
         has_render_artifact:
           input.spec.mode === 'render' || input.spec.mode === 'render_nrt',
         quality_tier: input.spec.mode === 'render_nrt' ? 'final_nrt' : undefined,
+        requires_review: taskPolicy?.requires_review_note,
       });
       const artifact = probeRun.artifacts.find((entry) => entry.kind === 'render');
       const renderQuality =
@@ -312,8 +317,8 @@ export class WorkflowService {
         evals: {
           path_compliance: evaluatePathCompliance({
             workflow: selection.workflow,
-            steps: [{ name: actionName, kind: 'tool' }],
-            requiredSteps: [actionName],
+            steps: [{ name: 'sc_run_probe', kind: 'tool' }],
+            requiredSteps: ['sc_run_probe'],
           }),
           render_quality: renderQuality,
           task_outcome: evaluateTaskOutcome({
@@ -325,7 +330,7 @@ export class WorkflowService {
           trace: gradeTrace({
             steps: [
               {
-                name: actionName,
+                name: 'sc_run_probe',
                 category: 'execute',
                 success: probeRun.success,
               },
@@ -640,17 +645,9 @@ function inferTaskLabel(tags: string[]): 'sc-audio-generation' | 'sc-probe' | 's
   return 'sc-probe';
 }
 
-function probeActionName(
-  mode: ProbeSpec['mode'],
-): 'sc_eval' | 'sc_render' | 'sc_render_nrt' | 'sc_run_file' {
-  if (mode === 'render_nrt') {
-    return 'sc_render_nrt';
-  }
-  if (mode === 'render') {
-    return 'sc_render';
-  }
-  if (mode === 'run_file') {
-    return 'sc_run_file';
-  }
-  return 'sc_eval';
+function definitionFromSelection(selection: WorkflowSelection) {
+  return getWorkflowDefinition(selection.workflow, {
+    finalNrtRequested: selection.recommended_execution_mode === 'render_nrt',
+    reviewRequired: selection.recommended_tools.includes('sc_candidate_action:add_review'),
+  });
 }
