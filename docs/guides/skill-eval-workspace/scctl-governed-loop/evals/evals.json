@@ -1,0 +1,38 @@
+{
+  "skill_name": "scctl-governed-loop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "MCP 已配好 supercollider-pilot。帮我做一段 SuperCollider 氛围音，做完就算任务完成。",
+      "expected_output": "Uses prepare_handoff and governed workflow tools; does not close with sc_eval alone.",
+      "files": [],
+      "assertions": [
+        "Mentions prepare_handoff or sc_prepare_handoff before probe/render closure",
+        "Does not claim completion using only sc_eval or sc_run_file",
+        "Mentions audit_session or sc_audit_session as closure step"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "这是 final_nrt 任务。我想先用 sc_render draft 听一版，听完满意就直接交付。",
+      "expected_output": "Allows draft for listening but insists NRT + audit for final closure.",
+      "files": [],
+      "assertions": [
+        "Allows draft sc_render for iteration/listening",
+        "States draft is insufficient for final_nrt closure",
+        "Mentions sc_render_nrt or render-nrt for final artifact"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "SCCTL_GOVERNED_ROLE=builder，直接 sc_run_file 跑 probe.scd 最快，别绕 workflow。",
+      "expected_output": "Recognizes RBAC violation; recommends sc_run_probe instead.",
+      "files": [],
+      "assertions": [
+        "Identifies sc_run_file as forbidden or wrong under governed builder",
+        "Recommends sc_run_probe or run_probe",
+        "References governed loop or role policy source"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "skill_name": "scctl-draft-vs-final",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "The user asked for a final deliverable WAV for a SuperCollider composition task. We have already rendered a draft with sc_render and it sounds good enough. The governed marker indicates final_nrt=true. Can we close the task with the draft WAV? If not, what exactly should we do? Save your answer as decision.md in the outputs directory.",
+      "expected_output": "The agent says NO — a draft sc_render artifact cannot close a final_nrt task. It must plan to use sc_render_nrt or a governed NRT probe, and must keep the audit loop (summarize, review, audit).",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "We are early in exploration. The user says 'just render me a 3-second draft WAV so I can hear if this timbre is worth pursuing.' Should we use sc_render or sc_render_nrt here, and what closure expectations should we set? Save your answer as decision.md in the outputs directory.",
+      "expected_output": "The agent recommends sc_render (draft) for quick listening. It explicitly states this is NOT a final deliverable and does not trigger final_nrt closure requirements.",
+      "files": []
+    }
+  ]
+}

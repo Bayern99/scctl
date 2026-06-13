@@ -56,6 +56,41 @@ node dist/cli.js check
 
 已安装时的示例输出：结构化 JSON，包含 `success`、`state`、`summary`。
 
+可选全局安装：
+
+```bash
+npm link
+scctl check
+```
+
+## 在 consumer 项目中使用
+
+多数场景在 **consumer 工作区**（音乐应用、研究 repo 等）通过 MCP 连接 Pilot，**不必**把本仓库源码 vendoring 进业务代码。
+
+| 组件 | 是否必须在 consumer 工作区 | 说明 |
+|------|---------------------------|------|
+| Pilot 程序（`dist/mcp/server.js`、`scctl`） | 否 | 任意路径安装；MCP 配置写绝对路径 |
+| Archive、governed marker | 是 | 写在 **Agent 工作区根**：`.scctl/archive/`、`.scctl/governed-role` |
+| KB（`docs/superpowers/kb/`） | 需要有效 handoff 时 | 从 consumer 的 `cwd` 读取；缺失则 `kb_snapshot` 为空 |
+| Agent skills（`.agents/skills/scctl-*`） | 推荐 | 复制或链接；仅连 MCP 不会自动加载 |
+| IDE hooks | 可选硬约束 | consumer 配置 `.cursor/hooks.json` |
+
+Pilot 为**独立 OS 进程**（Node MCP + 按需 `sclang` / `scsynth`），不进入业务应用 runtime。空闲开销小；渲染时占用本机 CPU/内存。`.scctl/` 建议加入 `.gitignore`。
+
+**一次性接入 consumer 项目：**
+
+```bash
+/absolute/path/to/supercollider-pilot/scripts/bootstrap-consumer-project.sh /absolute/path/to/your-project
+```
+
+将 KB、roles、`.agents/skills/scctl-*`、hooks 写入 consumer 工作区，再配置 MCP。详见 [docs/guides/consumer-bootstrap.zh-CN.md](docs/guides/consumer-bootstrap.zh-CN.md)。
+
+**Agent 应用 MCP**， governed loop 不要用 shell CLI：原生 tool call、长驻 `sclang`、可选 MCP preflight。**CLI** 供人工、冒烟与 CI。
+
+使用指南：[docs/guides/governed-pilot-tutorial.zh-CN.md](docs/guides/governed-pilot-tutorial.zh-CN.md)  
+**新项目快速接入（清单 + bootstrap 脚本）：** [docs/guides/consumer-bootstrap.zh-CN.md](docs/guides/consumer-bootstrap.zh-CN.md)  
+操作手册：[docs/operator-runbook.zh-CN.md](docs/operator-runbook.zh-CN.md) · [English](docs/operator-runbook.md)
+
 ## 使用
 
 ### CLI
@@ -101,11 +136,18 @@ node dist/cli.js memory-summary --limit 10
 # 治理层 handoff 与 audit
 node dist/cli.js prepare-handoff --input '{"task_id":"task-1","task_tag":"sc-audio-generation","goal":"render a Zhou Yi texture study","requested_outcome":"explore"}'
 node dist/cli.js audit-session --input '{"session_id":"session-1","task_tag":"sc-audio-generation"}'
-
-# 可选：全局安装
-npm link
-scctl check
 ```
+
+### MCP 与 CLI
+
+| | **MCP**（Agent 默认） | **CLI**（人工 / 脚本） |
+|---|----------------------|------------------------|
+| 入口 | Cursor、Claude Desktop 等 MCP 客户端 | `node dist/cli.js …` 或 `scctl …` |
+| 会话 | 长驻进程复用 `ScDriver` / `sclang` | 每次命令新进程 |
+| Governed RBAC | 在 MCP `env` 设 `SCCTL_GOVERNED_ROLE` 等 | 命令前设同样 env |
+| IDE preflight | 配置后对 MCP 工具有效 | 对 shell 命令无效 |
+
+仅 MCP、不设 env / hooks / skills 时，工具仍可用，但默认 **operator/debug** 面，raw runtime 不硬拦。
 
 ### Pilot 服务（MCP）
 
@@ -115,18 +157,23 @@ stdio 方式启动 Pilot MCP 服务：
 node dist/mcp/server.js
 ```
 
-**Claude Desktop** — 在 `claude_desktop_config.json` 中添加：
+**Claude Desktop / Cursor** — MCP 配置（`dist/mcp/server.js` 用**绝对路径**；`cwd` 为打开的工作区）：
 
 ```json
 {
   "mcpServers": {
     "supercollider-pilot": {
       "command": "node",
-      "args": ["/absolute/path/to/supercollider-pilot/dist/mcp/server.js"]
+      "args": ["/absolute/path/to/supercollider-pilot/dist/mcp/server.js"],
+      "env": {
+        "SCCTL_GOVERNED_ROLE": "builder"
+      }
     }
   }
 }
 ```
+
+operator/debug 时不设 `SCCTL_GOVERNED_ROLE`。可选：将 `.agents/skills/scctl-*` 与 `hooks/hooks.json` 复制到 consumer 工作区。
 
 | 工具 | 参数 | 说明 |
 |------|------|------|
@@ -196,7 +243,10 @@ prepare-handoff → run-probe → summarize-session → candidate-action / add_r
 
 设计说明：
 
-- [docs/operator-runbook.md](docs/operator-runbook.md)
+- [docs/guides/governed-pilot-tutorial.zh-CN.md](docs/guides/governed-pilot-tutorial.zh-CN.md) — 使用流、consumer 接入、Prompt
+- [docs/guides/agent-skills-spec.zh-CN.md](docs/guides/agent-skills-spec.zh-CN.md) — `.agents/skills/` 规范
+- [AGENTS.md](AGENTS.md) — 贡献者模块边界
+- [docs/operator-runbook.zh-CN.md](docs/operator-runbook.zh-CN.md) · [English](docs/operator-runbook.md)
 - [docs/design/scctl-scope-enhancement.md](docs/design/scctl-scope-enhancement.md)
 - [docs/design/boundary-freeze.md](docs/design/boundary-freeze.md)
 - [docs/design/route-enforcement-rules.md](docs/design/route-enforcement-rules.md)
@@ -231,20 +281,28 @@ node record-music.js  # 录制到 ./music.wav
 
 ## 架构
 
+### 使用流（governed 任务）
+
 ```text
-Pilot client / CLI
+Prompt → Agent（按需读 .agents/skills）
+      → Harness（SCCTL_GOVERNED_ROLE、hooks、completion-rules）
+      → MCP / CLI → Pilot 编排 / 工作流 / 运行时
+      → sclang / scsynth + .scctl/archive
+      → 评审环（听感、critic、audit）
+```
+
+### Pilot 内部分层（代码）
+
+```text
+Agent 客户端
        │
        ▼
 src/mcp/server.ts  or  src/cli.ts
        │
-       ▼
-ScDriver (src/runtime/driver.ts)
-       │  结构化状态 + 恢复语义 + 协议辅助函数
-       ▼
-SclangController (src/runtime/sclang.ts)
-       │  原始脚本执行 + completion marker
-       ▼
-sclang → scsynth → audio output
+       ├── orchestration / workflow（handoff、probe、audit）
+       └── ScDriver (src/runtime/driver.ts)
+               ▼
+       SclangController → sclang → scsynth → 音频输出
 ```
 
 要点：

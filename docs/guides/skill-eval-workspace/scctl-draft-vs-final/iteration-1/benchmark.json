@@ -1,0 +1,6 @@
+{
+  "iteration": 1,
+  "skill_name": "scctl-draft-vs-final",
+  "with_skill": { "pass_rate": 1.0 },
+  "without_skill": { "pass_rate": 0.0 }
+}

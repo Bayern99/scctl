@@ -1,0 +1,17 @@
+{
+  "skill_name": "scctl-governed-loop",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "We are in a governed SuperCollider session. The .scctl/governed-role marker shows final_nrt=true and the task tag is sc-audio-generation. The user wants to finish and deliver a final WAV. Describe the exact sequence of scctl MCP/CLI tools you would call to close this task correctly, and explain why each step is necessary. Save your answer as decision.md in the outputs directory.",
+      "expected_output": "The agent describes a governed loop: prepare_handoff (if not already done), run_probe with NRT probe or direct final NRT path, summarize_session, add_review / candidate_action, audit_session, memory_summary. It must NOT use sc_eval, sc_run_file, or sc_render as terminal actions. It must explain that final_nrt rejects draft render.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "I already ran sc_eval a few times interactively and the SuperCollider code produces a sound I like. The .scctl/governed-role marker exists. Can we mark the sc-audio-generation task as complete now? Save your answer as decision.md in the outputs directory.",
+      "expected_output": "The agent refuses to mark the task complete. It explains that raw sc_eval does not produce a governed trace or artifact, and proposes to run the governed loop (run_probe, summarize_session, review, audit) instead.",
+      "files": []
+    }
+  ]
+}

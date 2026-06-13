@@ -1,6 +1,11 @@
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "command": "node hooks/scctl-session-start.js"
+      }
+    ],
     "beforeMCPExecution": [
       {
         "command": "node hooks/scctl-governed-preflight.js",

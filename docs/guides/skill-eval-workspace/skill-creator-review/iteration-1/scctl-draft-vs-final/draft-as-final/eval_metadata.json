@@ -1,0 +1,6 @@
+{
+  "eval_id": 0,
+  "eval_name": "draft-as-final",
+  "prompt": "The user asked for a final deliverable WAV for a SuperCollider composition task. We have already rendered a draft with sc_render and it sounds good enough. The governed marker indicates final_nrt=true. Can we close the task with the draft WAV? If not, what exactly should we do? Save your answer as decision.md in the outputs directory.",
+  "assertions": []
+}

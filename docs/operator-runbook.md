@@ -1,5 +1,9 @@
 # Operator Runbook — supercollider-pilot
 
+> 中文版：[operator-runbook.zh-CN.md](./operator-runbook.zh-CN.md)  
+> **Consumer bootstrap:** [consumer-bootstrap.zh-CN.md](./guides/consumer-bootstrap.zh-CN.md)  
+> Workflow and prompts: [governed-pilot-tutorial.zh-CN.md](./guides/governed-pilot-tutorial.zh-CN.md)
+
 This runbook is for humans and agents operating `scctl` / Pilot MCP locally.
 
 ## Prerequisites
@@ -54,8 +58,9 @@ After a successful `prepare-handoff`, Pilot writes `.scctl/governed-role` (gitig
 - Repo hook entry: `hooks/hooks.json`
 - Cursor hook entry: `.cursor/hooks.json`
 - Preflight script: `hooks/scctl-governed-preflight.js`
+- Session hint script: `hooks/scctl-session-start.js` (`sessionStart`)
 
-Harness audit expects `hooks/hooks.json` to exist (`node scripts/harness-audit.js repo --format text`).
+Harness audit: `node scripts/harness-audit.js repo --format text` (or `skills` / `hooks` scope).
 
 Governed workflow and orchestration tools are the **default for creative tasks** that must leave an archive trail.
 
@@ -140,8 +145,9 @@ Local archive data is gitignored. Do not commit `.scctl/` or generated `*.wav`.
 
 ## Honest limits (current baseline)
 
-- Compliance is **reporting-first**; invalid routes are surfaced in JSON but not blocked at the MCP/CLI boundary.
-- Role tool allowlists live in handoff packets and docs; there is no MCP RBAC yet.
+- Compliance is **soft by default**; optional `task_tag` returns `compliance` metadata without blocking.
+- **Opt-in RBAC (Phase 7.1):** `SCCTL_GOVERNED_ROLE` enforces allowlists at MCP/CLI; see governed mode section above.
+- **Agent skills (Phase 7.2):** procedural guides in `.agents/skills/`; they do not replace hooks or RBAC.
 - Live smoke tests require local SuperCollider and are not part of default CI.
 
 See also: [docs/superpowers/status.md](../superpowers/status.md)

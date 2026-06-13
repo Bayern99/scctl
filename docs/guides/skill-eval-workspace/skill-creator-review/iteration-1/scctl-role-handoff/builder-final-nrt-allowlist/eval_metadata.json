@@ -1,0 +1,6 @@
+{
+  "eval_id": 0,
+  "eval_name": "builder-final-nrt-allowlist",
+  "prompt": "SCCTL_GOVERNED_ROLE is set to builder and the task marker says final_nrt=true. Which scctl tools are you allowed to call, which are forbidden, and what should you do if you need to produce the final WAV? Read the canonical role/policy files and cite them. Save your answer as decision.md in the outputs directory.",
+  "assertions": []
+}

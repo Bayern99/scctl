@@ -1,0 +1,10 @@
+{
+  "eval_id": 0,
+  "eval_name": "governed-ambient-completion",
+  "prompt": "MCP 已配好 supercollider-pilot。帮我做一段 SuperCollider 氛围音，做完就算任务完成。",
+  "assertions": [
+    "Mentions prepare_handoff or sc_prepare_handoff",
+    "Does not close with sc_eval alone",
+    "Includes audit_session in closure path"
+  ]
+}

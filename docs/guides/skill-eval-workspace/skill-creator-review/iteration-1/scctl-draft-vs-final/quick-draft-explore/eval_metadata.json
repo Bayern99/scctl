@@ -1,0 +1,6 @@
+{
+  "eval_id": 1,
+  "eval_name": "quick-draft-explore",
+  "prompt": "We are early in exploration. The user says 'just render me a 3-second draft WAV so I can hear if this timbre is worth pursuing.' Should we use sc_render or sc_render_nrt here, and what closure expectations should we set? Save your answer as decision.md in the outputs directory.",
+  "assertions": []
+}

@@ -56,6 +56,41 @@ node dist/cli.js check
 
 Expected output when installed: structured JSON with `success`, `state`, and `summary`.
 
+Optional global install:
+
+```bash
+npm link
+scctl check
+```
+
+## Using Pilot in your project
+
+Most teams use Pilot from a **consumer workspace** (music app, research repo, etc.) by pointing an Agent at the MCP server. You do **not** need to vendor this repository into your application code.
+
+| What | Must live in the consumer workspace? | Notes |
+|------|--------------------------------------|-------|
+| Pilot binary (`dist/mcp/server.js`, `scctl`) | No | Install anywhere; reference absolute path in MCP config |
+| Archive + governed marker | Yes | Written under the **Agent workspace root**: `.scctl/archive/`, `.scctl/governed-role` |
+| KB (`docs/superpowers/kb/`) | For meaningful handoff | Loaded from consumer `cwd`; missing files → empty `kb_snapshot` |
+| Agent skills (`.agents/skills/scctl-*`) | Recommended | Copied or linked; not loaded automatically with MCP alone |
+| IDE hooks | Optional hard layer | Consumer `.cursor/hooks.json` + scripts from this repo |
+
+Pilot runs as **separate OS processes** (Node MCP server + `sclang` / `scsynth` when rendering). It does not run inside your app server. Idle MCP overhead is small; rendering uses local CPU/RAM. Add `.scctl/` to `.gitignore`.
+
+**One-shot consumer setup:**
+
+```bash
+/absolute/path/to/supercollider-pilot/scripts/bootstrap-consumer-project.sh /absolute/path/to/your-project
+```
+
+Copies KB, roles, `.agents/skills/scctl-*`, hooks, and Cursor hook config into the consumer workspace. Then add MCP (below). Details: [docs/guides/consumer-bootstrap.zh-CN.md](docs/guides/consumer-bootstrap.zh-CN.md).
+
+**Agents should use MCP**, not shell CLI, for governed loops: native tool calls, persistent `sclang` session, and optional `beforeMCPExecution` hooks. Use **CLI** for operators, smoke tests, and CI scripts.
+
+Human-oriented walkthrough (Chinese): [docs/guides/governed-pilot-tutorial.zh-CN.md](docs/guides/governed-pilot-tutorial.zh-CN.md)  
+**New consumer project (checklist + bootstrap script):** [docs/guides/consumer-bootstrap.zh-CN.md](docs/guides/consumer-bootstrap.zh-CN.md)  
+Operator reference: [docs/operator-runbook.md](docs/operator-runbook.md) · [中文版](docs/operator-runbook.zh-CN.md)
+
 ## Usage
 
 ### CLI
@@ -101,11 +136,18 @@ node dist/cli.js memory-summary --limit 10
 # Governed handoff and audit
 node dist/cli.js prepare-handoff --input '{"task_id":"task-1","task_tag":"sc-audio-generation","goal":"render a Zhou Yi texture study","requested_outcome":"explore"}'
 node dist/cli.js audit-session --input '{"session_id":"session-1","task_tag":"sc-audio-generation"}'
-
-# Optional global install
-npm link
-scctl check
 ```
+
+### MCP vs CLI
+
+| | **MCP** (default for Agents) | **CLI** (operators / scripts) |
+|---|------------------------------|----------------------------------|
+| Entry | Cursor, Claude Desktop, other MCP clients | `node dist/cli.js …` or `scctl …` |
+| Session | Long-lived server reuses one `ScDriver` / `sclang` | New Node process per invocation |
+| Governed RBAC | Set `SCCTL_GOVERNED_ROLE` / `SCCTL_FINAL_NRT` in MCP `env` | Same env vars on the command |
+| IDE preflight hooks | Apply to MCP tool calls when configured | Do not apply to shell commands |
+
+MCP-only setup (no env, no hooks, no skills) still exposes all tools but defaults to **operator/debug** behavior — raw runtime tools are not hard-blocked.
 
 ### Pilot server (MCP)
 
@@ -115,18 +157,23 @@ Start the Pilot MCP server (stdio transport):
 node dist/mcp/server.js
 ```
 
-**Claude Desktop** — add to `claude_desktop_config.json`:
+**Claude Desktop / Cursor** — add to MCP config (use an **absolute path** to `dist/mcp/server.js`; `cwd` is the opened workspace):
 
 ```json
 {
   "mcpServers": {
     "supercollider-pilot": {
       "command": "node",
-      "args": ["/absolute/path/to/supercollider-pilot/dist/mcp/server.js"]
+      "args": ["/absolute/path/to/supercollider-pilot/dist/mcp/server.js"],
+      "env": {
+        "SCCTL_GOVERNED_ROLE": "builder"
+      }
     }
   }
 }
 ```
+
+Unset `SCCTL_GOVERNED_ROLE` for operator/debug. Optional governed hardening: copy `.agents/skills/scctl-*` and hook entries from `hooks/hooks.json` into the consumer workspace.
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -196,6 +243,10 @@ Typical operator/debug loop: `sc_check` → `sc_status`/`sc_health` → `sc_eval
 
 Design specs:
 
+- [docs/guides/consumer-bootstrap.zh-CN.md](docs/guides/consumer-bootstrap.zh-CN.md) — consumer checklist + bootstrap script
+- [docs/guides/governed-pilot-tutorial.zh-CN.md](docs/guides/governed-pilot-tutorial.zh-CN.md) — usage flow, consumer bootstrap, prompts
+- [docs/guides/agent-skills-spec.zh-CN.md](docs/guides/agent-skills-spec.zh-CN.md) — project skills in `.agents/skills/`
+- [AGENTS.md](AGENTS.md) — module boundaries for contributors
 - [docs/operator-runbook.md](docs/operator-runbook.md)
 - [docs/design/scctl-scope-enhancement.md](docs/design/scctl-scope-enhancement.md)
 - [docs/design/boundary-freeze.md](docs/design/boundary-freeze.md)
@@ -231,20 +282,28 @@ node record-music.js  # Record output to ./music.wav
 
 ## Architecture
 
+### Usage flow (governed task)
+
 ```text
-Pilot client / CLI
+Prompt → Agent (+ .agents/skills on demand)
+      → Harness (SCCTL_GOVERNED_ROLE, hooks, completion-rules)
+      → MCP or CLI → Pilot orchestration / workflow / runtime
+      → sclang / scsynth + .scctl/archive
+      → review loop (listening, critic, audit)
+```
+
+### Pilot internals (code layout)
+
+```text
+Agent client
        │
        ▼
 src/mcp/server.ts  or  src/cli.ts
        │
-       ▼
-ScDriver (src/runtime/driver.ts)
-       │  structured state + recovery + protocol helpers
-       ▼
-SclangController (src/runtime/sclang.ts)
-       │  raw script execution + completion markers
-       ▼
-sclang → scsynth → audio output
+       ├── orchestration / workflow (handoff, probe, audit)
+       └── ScDriver (src/runtime/driver.ts)
+               ▼
+       SclangController → sclang → scsynth → audio
 ```
 
 Key constraints:

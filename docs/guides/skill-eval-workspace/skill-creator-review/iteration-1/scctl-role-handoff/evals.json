@@ -1,0 +1,17 @@
+{
+  "skill_name": "scctl-role-handoff",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "SCCTL_GOVERNED_ROLE is set to builder and the task marker says final_nrt=true. Which scctl tools are you allowed to call, which are forbidden, and what should you do if you need to produce the final WAV? Read the canonical role/policy files and cite them. Save your answer as decision.md in the outputs directory.",
+      "expected_output": "The agent reads docs/superpowers/roles/sc-builder.md and docs/superpowers/kb/role-tool-policies.json. Allowed: sc_run_probe, sc_render_nrt (only because final_nrt is true). Forbidden: sc_eval, sc_run_file, sc_render. It should not guess or copy allowlists from memory.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "You are acting as the critic role in a governed session. The builder asks you to quickly run sc_eval to verify a line of SuperCollider code before they continue. How do you respond? Save your answer as decision.md in the outputs directory.",
+      "expected_output": "The agent refuses to run sc_eval. It explains that critic forbids direct SuperCollider execution and instead uses sc_audit_session or sc_candidate_action with add_review.",
+      "files": []
+    }
+  ]
+}

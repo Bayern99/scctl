@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-'use strict';
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const RAW_RUNTIME_TOOLS = new Set(['sc_eval', 'sc_run_file', 'sc_render', 'sc_render_nrt']);
 const POLICIES_PATH = path.join(

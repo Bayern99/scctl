@@ -1,0 +1,6 @@
+{
+  "eval_id": 0,
+  "eval_name": "final-nrt-closure",
+  "prompt": "We are in a governed SuperCollider session. The .scctl/governed-role marker shows final_nrt=true and the task tag is sc-audio-generation. The user wants to finish and deliver a final WAV. Describe the exact sequence of scctl MCP/CLI tools you would call to close this task correctly, and explain why each step is necessary. Save your answer as decision.md in the outputs directory.",
+  "assertions": []
+}

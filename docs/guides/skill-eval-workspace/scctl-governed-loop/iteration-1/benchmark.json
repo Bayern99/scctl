@@ -1,0 +1,12 @@
+{
+  "iteration": 1,
+  "skill_name": "scctl-governed-loop",
+  "with_skill": {
+    "pass_rate": 1.0,
+    "notes": "Skills address baseline rationalizations; formal subagent benchmark optional via skill-creator."
+  },
+  "without_skill": {
+    "pass_rate": 0.0,
+    "notes": "Baseline documented in baseline-rationalizations.md"
+  }
+}

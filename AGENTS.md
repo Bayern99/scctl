@@ -115,6 +115,7 @@ Plan H: Pilot Hardening
   → Phase 7B: Quality Eval + Governed Final Render
   → Phase 7C: Primitive Bootstrap + Real Artifact Growth
   → Phase 7.1: Governance Hardening (opt-in RBAC + hooks)
+  → Phase 7.2: Project Agent Skills + session context
 ```
 
 | 计划 | 当前优先级 | 主要文件 |
@@ -122,7 +123,8 @@ Plan H: Pilot Hardening
 | **Plan H / A / B / C** | 已有绿色基线 | `src/runtime/*`, `src/harness/*`, `src/lab/*`, `src/archive/*`, `src/evals/*`, `src/planner/*`, `src/workflow/service.ts` |
 | **Agent Harness & Narrow Roles** | 已完成首轮收口 | `src/orchestration/*`, `docs/superpowers/kb/*`, `docs/superpowers/roles/*`, CLI/MCP governance tools |
 | **Phase 7 Broad Quality Expansion** | 已完成主体 | `src/runtime/*`, `src/evals/*`, `src/workflow/*`, `src/orchestration/*`, `sc/*`, docs/KB/roles |
-| **Phase 7.1 Governance Hardening** | 现在 | `src/harness/role-policies.ts`, `src/transport/governance.ts`, `hooks/*`, `.cursor/hooks.json` |
+| **Phase 7.1 Governance Hardening** | 已完成 | `src/harness/role-policies.ts`, `src/transport/governance.ts`, `hooks/*`, `.cursor/hooks.json` |
+| **Phase 7.2 Agent Skills & Context** | 现在 | `.agents/skills/scctl-*`, `docs/guides/agent-skills-spec.zh-CN.md`, `hooks/scctl-session-start.js`, `scripts/harness-audit.js` (skills scope) |
 
 关键约束：
 
@@ -132,6 +134,7 @@ Plan H: Pilot Hardening
 - raw `sc_render_nrt` 是 final-quality runtime surface，但仍不替代 governed workflow。
 - 受治理的创作 loop 默认走 orchestration + workflow tools。
 - 不把 orchestration 逻辑回流到 runtime。
+- 项目 Agent skills 在 `.agents/skills/scctl-*`（agent 中立路径，不绑单一 IDE）；写作规范见 [`docs/guides/agent-skills-spec.zh-CN.md`](docs/guides/agent-skills-spec.zh-CN.md)。**Consumer 接入清单：** [`docs/guides/consumer-bootstrap.zh-CN.md`](docs/guides/consumer-bootstrap.zh-CN.md)。使用教程见 [`docs/guides/governed-pilot-tutorial.zh-CN.md`](docs/guides/governed-pilot-tutorial.zh-CN.md)（不改 README）。
 
 ---
 
@@ -175,7 +178,7 @@ Plan H: Pilot Hardening
 
 | 文档 | 用途 |
 |------|------|
-| `docs/operator-runbook.md` | operator/debug vs governed 操作手册 |
+| `docs/operator-runbook.md` / [`operator-runbook.zh-CN.md`](docs/operator-runbook.zh-CN.md) | operator/debug vs governed 操作手册 |
 | `README.md` / `README.zh-CN.md` | 人类 quick start |
 | `docs/design/boundary-freeze.md` | 当前基础设施 phase 的边界冻结 |
 | `docs/design/scctl-scope-enhancement.md` | 已批准的 R1 render spec |
@@ -187,6 +190,8 @@ Plan H: Pilot Hardening
 | `docs/design/planner-spec.md` | planner 输入输出与非目标 |
 | `docs/design/zhouyi-supercollider-agent-assessment.zh-CN.md` | 周易项目评估与推荐架构 |
 | `docs/design/agent-harness-research-2026-06-13.zh-CN.md` | harness / memory / multi-agent 研究 |
+| `docs/guides/agent-skills-spec.zh-CN.md` | 项目 Agent skill 分层与 TDD 写作规范 |
+| `docs/guides/governed-pilot-tutorial.zh-CN.md` | 人类新手 governed pilot 教程 |
 | `docs/superpowers/plans/2026-06-13-supercollider-pilot-final-roadmap.md` | 7 阶段最终路线图 |
 | `docs/superpowers/plans/2026-06-13-supercollider-pilot-execution-plan.zh-CN.md` | 可执行子代理计划 |
 | `docs/superpowers/status.md` | 当前治理基线与 operator/debug vs governed surface 说明 |

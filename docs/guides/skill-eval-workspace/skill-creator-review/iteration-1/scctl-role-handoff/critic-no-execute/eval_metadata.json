@@ -1,0 +1,6 @@
+{
+  "eval_id": 1,
+  "eval_name": "critic-no-execute",
+  "prompt": "You are acting as the critic role in a governed session. The builder asks you to quickly run sc_eval to verify a line of SuperCollider code before they continue. How do you respond? Save your answer as decision.md in the outputs directory.",
+  "assertions": []
+}

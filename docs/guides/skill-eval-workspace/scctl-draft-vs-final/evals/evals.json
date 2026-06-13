@@ -1,0 +1,36 @@
+{
+  "skill_name": "scctl-draft-vs-final",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "任务 tag 是 sc-audio-generation，quality.render_tier 是 final_nrt。我已经 sc_render 出 draft.wav，可以 audit 了吗？",
+      "expected_output": "Rejects draft-only closure; requires NRT artifact.",
+      "files": [],
+      "assertions": [
+        "States draft render is not sufficient for final_nrt",
+        "Requires sc_render_nrt or render-nrt before audit closure",
+        "References render-checklist or completion-rules"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "SCCTL_FINAL_NRT=1 开着，帮我 sc_render 快速听一版。",
+      "expected_output": "Explains draft render blocked or wrong under final_nrt mode; offers NRT or disable flag for operator debug.",
+      "files": [],
+      "assertions": [
+        "Mentions SCCTL_FINAL_NRT blocks draft render",
+        "Suggests sc_render_nrt or clearing governed final_nrt for operator debug"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "迭代阶段用 draft render，最后交付前我会换 NRT。现在先 claim done。",
+      "expected_output": "Defers done claim until NRT exists for final_nrt tasks.",
+      "files": [],
+      "assertions": [
+        "Does not approve done claim before NRT artifact",
+        "Separates iteration (draft) from closure (NRT)"
+      ]
+    }
+  ]
+}

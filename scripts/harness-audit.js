@@ -91,6 +91,16 @@ function auditContextEfficiency(root) {
       pass: exists(root, 'docs/operator-runbook.md'),
       path: 'docs/operator-runbook.md',
     },
+    {
+      id: 'agent_skills_spec',
+      pass: exists(root, 'docs/guides/agent-skills-spec.zh-CN.md'),
+      path: 'docs/guides/agent-skills-spec.zh-CN.md',
+    },
+    {
+      id: 'pilot_tutorial',
+      pass: exists(root, 'docs/guides/governed-pilot-tutorial.zh-CN.md'),
+      path: 'docs/guides/governed-pilot-tutorial.zh-CN.md',
+    },
   ];
   return { name: 'Context Efficiency', checks, score: scoreFromChecks(checks) };
 }
@@ -187,6 +197,115 @@ function auditCostEfficiency(root) {
   return { name: 'Cost Efficiency', checks, score: scoreFromChecks(checks) };
 }
 
+const REQUIRED_PROJECT_SKILLS = [
+  'scctl-governed-loop',
+  'scctl-draft-vs-final',
+  'scctl-operator-debug',
+  'scctl-role-handoff',
+  'scctl-probe-lifecycle',
+  'scctl-module-boundaries',
+];
+
+function readSkillFrontmatter(root, skillName) {
+  const skillPath = path.join(root, '.agents', 'skills', skillName, 'SKILL.md');
+  if (!fs.existsSync(skillPath)) {
+    return null;
+  }
+  const text = fs.readFileSync(skillPath, 'utf8');
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) {
+    return null;
+  }
+  const frontmatter = match[1];
+  const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
+  const descMatch = frontmatter.match(/^description:\s*(.+)$/m);
+  return {
+    name: nameMatch?.[1]?.trim() ?? '',
+    description: descMatch?.[1]?.trim() ?? '',
+  };
+}
+
+function auditProjectSkills(root) {
+  const checks = [
+    {
+      id: 'skills_spec',
+      pass: exists(root, 'docs/guides/agent-skills-spec.zh-CN.md'),
+      path: 'docs/guides/agent-skills-spec.zh-CN.md',
+    },
+    {
+      id: 'skills_dir',
+      pass: exists(root, '.agents/skills'),
+      path: '.agents/skills/',
+    },
+    {
+      id: 'session_start_hook',
+      pass: /sessionStart/.test(readText(root, 'hooks/hooks.json')),
+      path: 'hooks/hooks.json',
+    },
+    {
+      id: 'session_start_script',
+      pass: exists(root, 'hooks/scctl-session-start.js'),
+      path: 'hooks/scctl-session-start.js',
+    },
+    {
+      id: 'governed_loop_skill',
+      pass: exists(root, '.agents/skills/scctl-governed-loop/SKILL.md'),
+      path: '.agents/skills/scctl-governed-loop/SKILL.md',
+    },
+    {
+      id: 'draft_final_skill',
+      pass: exists(root, '.agents/skills/scctl-draft-vs-final/SKILL.md'),
+      path: '.agents/skills/scctl-draft-vs-final/SKILL.md',
+    },
+  ];
+
+  for (const skillName of REQUIRED_PROJECT_SKILLS) {
+    const meta = readSkillFrontmatter(root, skillName);
+    checks.push({
+      id: `skill_${skillName}`,
+      pass: Boolean(
+        meta
+        && meta.name === skillName
+        && /^Use when/i.test(meta.description),
+      ),
+      path: `.agents/skills/${skillName}/SKILL.md`,
+    });
+  }
+
+  return { name: 'Project Skills', checks, score: scoreFromChecks(checks) };
+}
+
+function auditHooksScope(root) {
+  const checks = [
+    {
+      id: 'hooks_json',
+      pass: exists(root, 'hooks/hooks.json'),
+      path: 'hooks/hooks.json',
+    },
+    {
+      id: 'cursor_hooks_json',
+      pass: exists(root, '.cursor/hooks.json'),
+      path: '.cursor/hooks.json',
+    },
+    {
+      id: 'governed_preflight',
+      pass: exists(root, 'hooks/scctl-governed-preflight.js'),
+      path: 'hooks/scctl-governed-preflight.js',
+    },
+    {
+      id: 'session_start_hook',
+      pass: /sessionStart/.test(readText(root, 'hooks/hooks.json')),
+      path: 'hooks/hooks.json',
+    },
+    {
+      id: 'before_mcp_guard',
+      pass: /beforeMCPExecution/.test(readText(root, 'hooks/hooks.json')),
+      path: 'hooks/hooks.json',
+    },
+  ];
+  return { name: 'Hooks', checks, score: scoreFromChecks(checks) };
+}
+
 function auditGitHubIntegration(root) {
   const checks = [
     { id: 'workflows_dir', pass: exists(root, '.github/workflows'), path: '.github/workflows/' },
@@ -221,8 +340,16 @@ function buildTopActions(categories) {
   }));
 }
 
+const SCOPE_CATEGORIES = {
+  repo: null,
+  hooks: ['Hooks', 'Security Guardrails'],
+  skills: ['Project Skills', 'Context Efficiency'],
+  commands: ['Tool Coverage'],
+  agents: ['Cost Efficiency', 'Eval Coverage'],
+};
+
 function runAudit(args) {
-  const categories = [
+  const allCategories = [
     auditToolCoverage(args.root),
     auditContextEfficiency(args.root),
     auditQualityGates(args.root),
@@ -231,11 +358,18 @@ function runAudit(args) {
     auditSecurityGuardrails(args.root),
     auditCostEfficiency(args.root),
     auditGitHubIntegration(args.root),
+    auditProjectSkills(args.root),
+    auditHooksScope(args.root),
     deployCategory('Vercel Integration', ['vercel.json', '.vercel/'], args.root),
     deployCategory('Netlify Integration', ['netlify.toml', '.netlify/'], args.root),
     deployCategory('Cloudflare Integration', ['wrangler.toml', 'wrangler.jsonc'], args.root),
     deployCategory('Fly Integration', ['fly.toml'], args.root),
   ].filter(Boolean);
+
+  const scopeFilter = SCOPE_CATEGORIES[args.scope];
+  const categories = scopeFilter
+    ? allCategories.filter((category) => scopeFilter.includes(category.name))
+    : allCategories;
 
   const overallScore = categories.reduce((sum, c) => sum + c.score, 0);
   const maxScore = categories.length * MAX_CATEGORY;

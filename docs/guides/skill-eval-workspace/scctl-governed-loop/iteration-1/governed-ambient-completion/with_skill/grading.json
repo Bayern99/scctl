@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "text": "Mentions prepare_handoff or sc_prepare_handoff",
+      "passed": true,
+      "evidence": "SKILL.md Quick Reference step 1 and Common Mistakes block sc_eval closure"
+    },
+    {
+      "text": "Does not close with sc_eval alone",
+      "passed": true,
+      "evidence": "Common Mistakes table explicitly forbids sc_eval completion path"
+    },
+    {
+      "text": "Includes audit_session in closure path",
+      "passed": true,
+      "evidence": "Quick Reference step 5 audit_session"
+    }
+  ]
+}
