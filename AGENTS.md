@@ -188,8 +188,10 @@ Plan H: Pilot Hardening
 | `docs/design/candidate-lifecycle.md` | candidate 状态与 review gate |
 | `docs/design/eval-rubric.md` | eval 指标与解释边界 |
 | `docs/design/planner-spec.md` | planner 输入输出与非目标 |
-| `docs/design/zhouyi-supercollider-agent-assessment.zh-CN.md` | 周易项目评估与推荐架构 |
+| `docs/design/zhouyi-supercollider-agent-assessment.zh-CN.md` | 周易项目评估与推荐架构（consumer 参考，非本仓库 runtime） |
 | `docs/design/agent-harness-research-2026-06-13.zh-CN.md` | harness / memory / multi-agent 研究 |
+| `docs/design/README.md` | 设计文档索引与 merge 分类 |
+| `docs/MERGE-READINESS.md` | 合并 main 前检查清单 |
 | `docs/guides/agent-skills-spec.zh-CN.md` | 项目 Agent skill 分层与 TDD 写作规范 |
 | `docs/guides/governed-pilot-tutorial.zh-CN.md` | 人类新手 governed pilot 教程 |
 | `docs/superpowers/plans/2026-06-13-supercollider-pilot-final-roadmap.md` | 7 阶段最终路线图 |

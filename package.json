@@ -9,7 +9,14 @@
   "files": [
     "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md",
+    "hooks",
+    "scripts/bootstrap-consumer-project.sh",
+    "scripts/harness-audit.js",
+    "docs/superpowers/kb",
+    "docs/superpowers/roles",
+    ".agents/skills"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
