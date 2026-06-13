@@ -6,20 +6,27 @@ import { discoverSclangPath } from '../src/runtime/discover.js';
 
 const shouldRun = process.env.SCCTL_RUN_LIVE_SMOKE === '1' && Boolean(discoverSclangPath());
 const liveDescribe = shouldRun ? describe : describe.skip;
-const outPath = path.resolve('/tmp/scctl-live-smoke.wav');
+const draftOutPath = path.resolve('/tmp/scctl-live-smoke.wav');
+const nrtOutPath = path.resolve('/tmp/scctl-live-smoke-nrt.wav');
+const nrtSourcePath = path.resolve(
+  process.cwd(),
+  'sc/families/sustained-tonal-carrier/final-nrt.scd',
+);
 
 liveDescribe('live SuperCollider smoke', () => {
   const driver = new ScDriver();
 
   afterAll(async () => {
     await driver.stop();
-    if (fs.existsSync(outPath)) {
-      fs.unlinkSync(outPath);
+    for (const artifactPath of [draftOutPath, nrtOutPath]) {
+      if (fs.existsSync(artifactPath)) {
+        fs.unlinkSync(artifactPath);
+      }
     }
   });
 
   it(
-    'drives eval, runtime errors, reset, render, and reclaim against a real engine',
+    'drives eval, runtime errors, reset, draft render, NRT render, and reclaim against a real engine',
     async () => {
       const check = await driver.check();
       expect(check.success).toBe(true);
@@ -39,12 +46,33 @@ liveDescribe('live SuperCollider smoke', () => {
 
       const render = await driver.render({
         durationSec: 1,
-        outPath,
+        outPath: draftOutPath,
         userCode: '{ SinOsc.ar(440, 0, 0.05) }.play;',
       });
       expect(render.success).toBe(true);
       expect(render.artifact?.bytes).toBeGreaterThan(0);
-      expect(render.artifact?.path).toBe(outPath);
+      expect(render.artifact?.path).toBe(draftOutPath);
+      expect(render.artifact?.verification).toMatchObject({
+        exists: true,
+        non_empty: true,
+        output_error_detected: false,
+        stop_completed: true,
+      });
+
+      const nrtRender = await driver.renderNrt({
+        sourcePath: nrtSourcePath,
+        outPath: nrtOutPath,
+        sampleFormat: 'float',
+      });
+      expect(nrtRender.success).toBe(true);
+      expect(nrtRender.artifact?.path).toBe(nrtOutPath);
+      expect(nrtRender.artifact?.render_mode).toBe('nrt');
+      expect(nrtRender.artifact?.verification).toMatchObject({
+        exists: true,
+        non_empty: true,
+        output_error_detected: false,
+        stop_completed: true,
+      });
 
       const reclaim = await driver.reclaim();
       expect(reclaim.success).toBe(true);

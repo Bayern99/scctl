@@ -1,11 +1,17 @@
 import fs from 'fs';
+import path from 'path';
+import { detectRuntimeCapabilities } from './capabilities.js';
 import { discoverSclangPath } from './discover.js';
 import {
+  EngineKind,
+  EnginePreference,
   DriverErrorKind,
   DriverResult,
   DriverState,
   HealthSnapshot,
+  RequestedSampleFormat,
   RenderArtifact,
+  RuntimeCapabilities,
   SessionSnapshot,
 } from './driver-types.js';
 import {
@@ -19,6 +25,8 @@ import {
   containsScRuntimeError,
   makeMarker,
 } from './protocol.js';
+import { runNrtRender } from './render-nrt.js';
+import { buildRenderArtifact, isRenderArtifactValid } from './render-artifact.js';
 import {
   RunScriptOptions,
   ScriptRunResult,
@@ -43,8 +51,12 @@ export interface DriverOptions {
     sclangPath: string,
     options?: SclangControllerOptions,
   ) => SclangControllerLike;
+  detectCapabilities?: (
+    sclangPath: string | null,
+  ) => RuntimeCapabilities;
   discoverPath?: () => string | null;
   executeTimeoutMs?: number;
+  runNrtRender?: typeof runNrtRender;
   sleep?: (ms: number) => Promise<void>;
 }
 
@@ -66,6 +78,8 @@ export class ScDriver {
   private readonly createController;
   private readonly discoverPath;
   private readonly executeTimeoutMs: number;
+  private readonly detectCapabilities;
+  private readonly runNrt;
   private readonly sleepMs;
   private state: DriverState = 'idle';
   private phase = 'idle';
@@ -77,21 +91,26 @@ export class ScDriver {
       options.createController ??
       ((sclangPath: string, controllerOptions?: SclangControllerOptions) =>
         new SclangController(sclangPath, controllerOptions));
+    this.detectCapabilities = options.detectCapabilities ?? detectRuntimeCapabilities;
     this.discoverPath = options.discoverPath ?? (() => discoverSclangPath());
     this.executeTimeoutMs = options.executeTimeoutMs ?? 120_000;
+    this.runNrt = options.runNrtRender ?? runNrtRender;
     this.sleepMs = options.sleep ?? sleep;
   }
 
   public async check(): Promise<DriverResult> {
     const sclangPath = this.discoverPath();
+    const capabilities = this.getCapabilities(sclangPath);
     if (!sclangPath) {
       return this.buildErrorResult('check', 'engine_missing', 'engine_missing', false, '', {
+        capabilities,
         summary: 'SuperCollider engine is not installed or not discoverable.',
       });
     }
 
     if (this.controller) {
       return this.buildSuccessResult('check', this.state, '', {
+        capabilities,
         summary: 'Engine is available and an active session is present.',
         session: this.snapshot(sclangPath),
       });
@@ -110,11 +129,13 @@ export class ScDriver {
       });
 
       return this.buildSuccessResult('check', this.state, probe.rawOutput, {
+        capabilities,
         summary: 'SuperCollider engine is reachable.',
         session: this.snapshot(sclangPath),
       });
     } catch (err: any) {
       return this.buildErrorResult('check', 'degraded', 'protocol_error', true, '', {
+        capabilities,
         summary: `Engine was found but interpreter ping failed: ${err.message}`,
       });
     } finally {
@@ -143,8 +164,10 @@ export class ScDriver {
 
   public async health(): Promise<DriverResult> {
     const sclangPath = this.discoverPath();
+    const capabilities = this.getCapabilities(sclangPath);
     if (!sclangPath) {
       return this.buildErrorResult('health', 'engine_missing', 'engine_missing', false, '', {
+        capabilities,
         summary: 'SuperCollider engine is not installed or not discoverable.',
         health: this.buildHealthSnapshot(null, false, false, 'Engine path not found'),
       });
@@ -152,6 +175,7 @@ export class ScDriver {
 
     if (!this.controller) {
       return this.buildSuccessResult('health', this.state, '', {
+        capabilities,
         summary: 'Engine is available and there is no active session.',
         health: this.buildHealthSnapshot(sclangPath, false, false, null),
       });
@@ -161,6 +185,7 @@ export class ScDriver {
     if (degradedReason) {
       this.state = 'degraded';
       return this.buildErrorResult('health', 'degraded', 'process_exit', true, '', {
+        capabilities,
         summary: degradedReason,
         health: this.buildHealthSnapshot(sclangPath, false, false, degradedReason),
       });
@@ -169,6 +194,7 @@ export class ScDriver {
     if (this.controller.isBusy()) {
       this.state = 'busy';
       return this.buildSuccessResult('health', 'busy', '', {
+        capabilities,
         summary: 'Session is busy; returning the last known health snapshot.',
         health: this.buildHealthSnapshot(sclangPath, this.controller.hasProcess(), true, null),
       });
@@ -190,6 +216,7 @@ export class ScDriver {
         this.state = 'ready';
         this.phase = 'health';
         return this.buildSuccessResult('health', 'ready', probe.rawOutput, {
+          capabilities,
           summary: 'Session is healthy and ready.',
           health: this.buildHealthSnapshot(sclangPath, true, true, null),
         });
@@ -204,6 +231,7 @@ export class ScDriver {
         true,
         probe.rawOutput,
         {
+          capabilities,
           summary: 'The active session is alive but the SuperCollider server is not ready.',
           health: this.buildHealthSnapshot(
             sclangPath,
@@ -217,6 +245,7 @@ export class ScDriver {
       this.state = 'degraded';
       this.lastErrorKind = 'protocol_error';
       return this.buildErrorResult('health', 'degraded', 'protocol_error', true, '', {
+        capabilities,
         summary: `Health probe failed: ${err.message}`,
         health: this.buildHealthSnapshot(
           sclangPath,
@@ -358,6 +387,8 @@ export class ScDriver {
 
     const startMarker = makeMarker('render_start');
     const stopMarker = makeMarker('render_stop');
+    let output = ready.rawOutput;
+    let stopCompleted = false;
 
     try {
       const start = await ready.controller.runScript(
@@ -375,17 +406,26 @@ export class ScDriver {
         },
       );
 
-      const startOutput = this.mergeOutput(ready.rawOutput, start.rawOutput);
-      if (containsScRuntimeError(startOutput)) {
+      output = this.mergeOutput(output, start.rawOutput);
+      if (containsScRuntimeError(output)) {
+        const artifact = buildRenderArtifact(
+          options.outPath,
+          durationSec,
+          output,
+          false,
+          'draft',
+          'scsynth',
+        );
         await this.stopAndClearController(true);
         return this.buildErrorResult(
           'render',
           'stopped',
           'sc_runtime_error',
           true,
-          startOutput,
+          output,
           {
             summary: 'Render setup failed because SuperCollider reported an error.',
+            artifact,
           },
         );
       }
@@ -396,18 +436,20 @@ export class ScDriver {
         completionMarkers: [stopMarker],
         timeoutMs: this.executeTimeoutMs,
       });
-      const output = this.mergeOutput(startOutput, stop.rawOutput);
-
-      const bytes = fs.existsSync(options.outPath) ? fs.statSync(options.outPath).size : 0;
-      const artifact: RenderArtifact = {
-        path: options.outPath,
-        bytes,
-        duration_sec: durationSec,
-      };
+      stopCompleted = true;
+      output = this.mergeOutput(output, stop.rawOutput);
+      const artifact = buildRenderArtifact(
+        options.outPath,
+        durationSec,
+        output,
+        true,
+        'draft',
+        'scsynth',
+      );
 
       await this.stopAndClearController(true);
 
-      if (containsScRuntimeError(output) || bytes <= 0) {
+      if (!isRenderArtifactValid(artifact)) {
         return this.buildErrorResult('render', 'stopped', 'render_failed', true, output, {
           summary: 'Render finished without producing a valid non-empty WAV artifact.',
           artifact,
@@ -419,17 +461,159 @@ export class ScDriver {
         artifact,
       });
     } catch (err: any) {
-      const rawOutput = ready.rawOutput;
+      const artifact = buildRenderArtifact(
+        options.outPath,
+        durationSec,
+        output,
+        stopCompleted,
+        'draft',
+        'scsynth',
+      );
       await this.stopAndClearController(true);
-      return this.buildErrorResult('render', 'stopped', 'render_failed', true, rawOutput, {
+      return this.buildErrorResult('render', 'stopped', 'render_failed', true, output, {
         summary: `Render flow failed: ${err.message}`,
-        artifact: {
-          path: options.outPath,
-          bytes: fs.existsSync(options.outPath) ? fs.statSync(options.outPath).size : 0,
-          duration_sec: durationSec,
-        },
+        artifact,
       });
     }
+  }
+
+  public async renderNrt(options: {
+    durationSec?: number;
+    enginePreference?: EnginePreference;
+    outPath: string;
+    sampleFormat?: RequestedSampleFormat;
+    sourcePath: string;
+  }): Promise<DriverResult<RenderArtifact>> {
+    const sourcePath = options.sourcePath.trim();
+    const outPath = options.outPath.trim();
+    const enginePreference = options.enginePreference ?? 'auto';
+    const sampleFormat = options.sampleFormat ?? 'float';
+    const sclangPath = this.discoverPath();
+    const capabilities = this.getCapabilities(sclangPath);
+
+    if (!sclangPath) {
+      this.state = 'engine_missing';
+      return this.buildErrorResult('render_nrt', 'engine_missing', 'engine_missing', false, '', {
+        capabilities,
+        summary: 'SuperCollider engine is not installed or not discoverable.',
+      });
+    }
+    if (!sourcePath) {
+      return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+        capabilities,
+        summary: 'An absolute .scd source path is required for NRT rendering.',
+      });
+    }
+    if (!path.isAbsolute(sourcePath)) {
+      return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+        capabilities,
+        summary: 'NRT rendering requires an absolute .scd source path.',
+      });
+    }
+    if (!sourcePath.toLowerCase().endsWith('.scd')) {
+      return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+        capabilities,
+        summary: 'NRT rendering only accepts .scd source files.',
+      });
+    }
+    if (!outPath) {
+      return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+        capabilities,
+        summary: 'An absolute output WAV path is required for NRT rendering.',
+      });
+    }
+    if (!path.isAbsolute(outPath)) {
+      return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+        capabilities,
+        summary: 'NRT rendering requires an absolute output WAV path.',
+      });
+    }
+    try {
+      const stat = fs.statSync(sourcePath);
+      if (!stat.isFile()) {
+        return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+          capabilities,
+          summary: `Path is not a regular file: ${sourcePath}`,
+        });
+      }
+    } catch {
+      return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+        capabilities,
+        summary: `File not found: ${sourcePath}`,
+      });
+    }
+    if (!['float', 'double'].includes(sampleFormat)) {
+      return this.buildErrorResult('render_nrt', this.state, 'invalid_argument', false, '', {
+        capabilities,
+        summary: 'NRT sample_format must be float or double.',
+      });
+    }
+
+    const engine = this.resolveNrtEngine(enginePreference, capabilities);
+    if (!engine) {
+      return this.buildErrorResult(
+        'render_nrt',
+        this.state,
+        'capability_unavailable',
+        false,
+        '',
+        {
+          capabilities,
+          summary:
+            enginePreference === 'supernova'
+              ? 'supernova was explicitly requested but is not available on this machine.'
+              : 'NRT rendering is unavailable because the required SuperCollider engine binaries were not found.',
+        },
+      );
+    }
+
+    const result = await this.runNrt({
+      durationSec: options.durationSec,
+      enginePath: engine.path,
+      engineUsed: engine.kind,
+      executeTimeoutMs: this.executeTimeoutMs,
+      outPath,
+      sampleFormat,
+      sclangPath,
+      sourcePath,
+    });
+
+    const artifact = buildRenderArtifact(
+      outPath,
+      options.durationSec ?? 0,
+      result.raw_output,
+      result.success,
+      'nrt',
+      engine.kind,
+    );
+
+    if (!result.success) {
+      const errorKind = containsScRuntimeError(result.raw_output)
+        ? 'sc_runtime_error'
+        : 'render_failed';
+      return this.buildErrorResult('render_nrt', this.state, errorKind, true, result.raw_output, {
+        artifact,
+        capabilities,
+        summary:
+          errorKind === 'sc_runtime_error'
+            ? 'NRT rendering failed because SuperCollider reported a runtime error.'
+            : 'NRT rendering did not complete successfully.',
+      });
+    }
+
+    if (!isRenderArtifactValid(artifact)) {
+      return this.buildErrorResult('render_nrt', this.state, 'render_failed', true, result.raw_output, {
+        artifact,
+        capabilities,
+        summary: 'NRT rendering finished without producing a valid WAV artifact.',
+      });
+    }
+
+    return this.buildSuccessResult('render_nrt', this.state, result.raw_output, {
+      artifact,
+      capabilities,
+      summary: 'NRT render completed and produced a final-quality WAV artifact.',
+    });
   }
 
   public async stop(): Promise<DriverResult> {
@@ -646,13 +830,14 @@ export class ScDriver {
   private buildSuccessResult<TArtifact>(
     phase: string,
     state: DriverState,
-    rawOutput: string,
-    extras: {
-      artifact?: TArtifact;
-      health?: HealthSnapshot;
-      session?: SessionSnapshot;
-      summary: string;
-    },
+      rawOutput: string,
+      extras: {
+        artifact?: TArtifact;
+        capabilities?: RuntimeCapabilities;
+        health?: HealthSnapshot;
+        session?: SessionSnapshot;
+        summary: string;
+      },
   ): DriverResult<TArtifact> {
     this.phase = phase;
     return {
@@ -665,8 +850,9 @@ export class ScDriver {
       summary: extras.summary,
       raw_output: rawOutput,
       artifact: extras.artifact,
+      capabilities: extras.capabilities,
       health: extras.health,
-      session: extras.session,
+      session: extras.session ?? this.snapshot(this.discoverPath()),
     };
   }
 
@@ -675,13 +861,14 @@ export class ScDriver {
     state: DriverState,
     errorKind: DriverErrorKind,
     recoverable: boolean,
-    rawOutput: string,
-    extras: {
-      artifact?: TArtifact;
-      health?: HealthSnapshot;
-      session?: SessionSnapshot;
-      summary: string;
-    },
+      rawOutput: string,
+      extras: {
+        artifact?: TArtifact;
+        capabilities?: RuntimeCapabilities;
+        health?: HealthSnapshot;
+        session?: SessionSnapshot;
+        summary: string;
+      },
   ): DriverResult<TArtifact> {
     this.phase = phase;
     this.lastErrorKind = errorKind;
@@ -695,8 +882,9 @@ export class ScDriver {
       summary: extras.summary,
       raw_output: rawOutput,
       artifact: extras.artifact,
+      capabilities: extras.capabilities,
       health: extras.health,
-      session: extras.session,
+      session: extras.session ?? this.snapshot(this.discoverPath()),
     };
   }
 
@@ -738,6 +926,27 @@ export class ScDriver {
 
   private mergeOutput(...chunks: string[]): string {
     return chunks.filter(Boolean).join('\n').trim();
+  }
+
+  private getCapabilities(sclangPath: string | null): RuntimeCapabilities {
+    return this.detectCapabilities(sclangPath);
+  }
+
+  private resolveNrtEngine(
+    preference: EnginePreference,
+    capabilities: RuntimeCapabilities,
+  ): { kind: EngineKind; path: string } | null {
+    if (preference === 'supernova') {
+      return capabilities.supernova.available && capabilities.supernova.path
+        ? { kind: 'supernova', path: capabilities.supernova.path }
+        : null;
+    }
+
+    if (capabilities.scsynth.available && capabilities.scsynth.path) {
+      return { kind: 'scsynth', path: capabilities.scsynth.path };
+    }
+
+    return null;
   }
 
   private async stopAndClearController(ignoreErrors: boolean): Promise<void> {
