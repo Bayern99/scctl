@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name('scctl')
   .description('Structured SuperCollider driver CLI for local agents and operators')
-  .version('1.1.0');
+  .version('1.1.1');
 
 function printResult(result: DriverResult<unknown>): never {
   console.log(JSON.stringify(result, null, 2));

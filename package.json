@@ -1,6 +1,6 @@
 {
   "name": "scctl",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "SuperCollider Pilot — bridge sclang to AI agents via CLI and MCP transport",
   "bin": {

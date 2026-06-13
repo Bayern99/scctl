@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-06-13
+
 ### Changed
 
 - **Dependencies (major):** `@modelcontextprotocol/sdk` 0.6 → 1.29, `commander` 11 → 15, `typescript` 5 → 6
 - **TypeScript 6:** explicit `"types": ["node"]` in `tsconfig.json` (TS 6 no longer auto-includes `@types/node`)
+
+### Added
+
+- Differential security review for deps bump: `docs/reviews/DIFFERENTIAL_REVIEW_PR9-deps-major-bump.md`
 
 ## [1.1.0] - 2026-06-13
 
@@ -62,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Obsolete `src/runtime/render.ts` and `src/runtime/server-probe.ts` paths
 
-[Unreleased]: https://github.com/Bayern99/supercollider-pilot/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Bayern99/supercollider-pilot/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Bayern99/supercollider-pilot/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Bayern99/supercollider-pilot/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Bayern99/supercollider-pilot/releases/tag/v1.0.0
