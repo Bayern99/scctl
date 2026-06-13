@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Dependencies (major):** `@modelcontextprotocol/sdk` 0.6 → 1.29, `commander` 11 → 15, `typescript` 5 → 6
+- **TypeScript 6:** explicit `"types": ["node"]` in `tsconfig.json` (TS 6 no longer auto-includes `@types/node`)
+
 ## [1.1.0] - 2026-06-13
 
 ### Added
